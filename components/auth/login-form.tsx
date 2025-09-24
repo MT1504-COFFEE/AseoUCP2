@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Building2, UserPlus } from "lucide-react"
 import Link from "next/link"
+import { apiClient } from "@/lib/api-client"
+import { saveAuthToken, saveUser } from "@/lib/auth"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -26,38 +28,12 @@ export function LoginForm() {
     try {
       console.log("[v0] Attempting login with:", { email })
 
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      })
+      const data = await apiClient.login(email, password)
 
-      console.log("[v0] Login response status:", response.status)
-      console.log("[v0] Login response headers:", Object.fromEntries(response.headers.entries()))
+      console.log("[v0] Login successful, user data:", data.user)
 
-      let data
-      const contentType = response.headers.get("content-type")
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json()
-        console.log("[v0] Login response data:", data)
-      } else {
-        const textResponse = await response.text()
-        console.error("[v0] Non-JSON response:", textResponse)
-        throw new Error("El servidor devolvió una respuesta inválida")
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al iniciar sesión")
-      }
-
-      if (!data.success || !data.user) {
-        throw new Error("Respuesta del servidor inválida")
-      }
-
-      console.log("[v0] Login successful, redirecting user with role:", data.user.role)
+      saveAuthToken(data.token)
+      saveUser(data.user)
 
       // Redirect based on user role
       if (data.user.role === "admin") {
@@ -140,16 +116,13 @@ export function LoginForm() {
           </div>
 
           <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-sm font-medium mb-2">Usuarios de prueba:</p>
+            <p className="text-sm font-medium mb-2">Conectado a Spring Boot Backend:</p>
             <div className="text-xs space-y-1 text-muted-foreground">
               <p>
-                <strong>Admin:</strong> admin@institucion.edu
+                <strong>API URL:</strong> {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"}
               </p>
               <p>
-                <strong>Personal:</strong> maria.garcia@institucion.edu
-              </p>
-              <p>
-                <strong>Contraseña:</strong> cualquier contraseña
+                <strong>Nota:</strong> Asegúrate de que tu backend Spring Boot esté ejecutándose
               </p>
             </div>
           </div>

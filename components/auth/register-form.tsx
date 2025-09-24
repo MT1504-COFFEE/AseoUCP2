@@ -11,6 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Building2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { apiClient } from "@/lib/api-client"
+import { saveAuthToken, saveUser } from "@/lib/auth"
 
 export function RegisterForm() {
   const [email, setEmail] = useState("")
@@ -29,38 +31,12 @@ export function RegisterForm() {
     try {
       console.log("[v0] Attempting registration with:", { email, fullName, role })
 
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, fullName, role }),
-      })
+      const data = await apiClient.register({ email, password, fullName, role })
 
-      console.log("[v0] Register response status:", response.status)
-      console.log("[v0] Register response headers:", Object.fromEntries(response.headers.entries()))
+      console.log("[v0] Registration successful, user data:", data.user)
 
-      let data
-      const contentType = response.headers.get("content-type")
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json()
-        console.log("[v0] Register response data:", data)
-      } else {
-        const textResponse = await response.text()
-        console.error("[v0] Non-JSON response:", textResponse)
-        throw new Error("El servidor devolvió una respuesta inválida")
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al crear la cuenta")
-      }
-
-      if (!data.success || !data.user) {
-        throw new Error("Respuesta del servidor inválida")
-      }
-
-      console.log("[v0] Registration successful, redirecting user with role:", data.user.role)
+      saveAuthToken(data.token)
+      saveUser(data.user)
 
       // Redirect based on user role
       if (data.user.role === "admin") {
