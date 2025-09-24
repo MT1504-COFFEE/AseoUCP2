@@ -1,0 +1,178 @@
+"use client"
+
+import type React from "react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, Building2, ArrowLeft } from "lucide-react"
+import Link from "next/link"
+
+export function RegisterForm() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [fullName, setFullName] = useState("")
+  const [role, setRole] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
+
+    try {
+      console.log("[v0] Attempting registration with:", { email, fullName, role })
+
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password, fullName, role }),
+      })
+
+      console.log("[v0] Register response status:", response.status)
+      console.log("[v0] Register response headers:", Object.fromEntries(response.headers.entries()))
+
+      let data
+      const contentType = response.headers.get("content-type")
+
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json()
+        console.log("[v0] Register response data:", data)
+      } else {
+        const textResponse = await response.text()
+        console.error("[v0] Non-JSON response:", textResponse)
+        throw new Error("El servidor devolvió una respuesta inválida")
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al crear la cuenta")
+      }
+
+      if (!data.success || !data.user) {
+        throw new Error("Respuesta del servidor inválida")
+      }
+
+      console.log("[v0] Registration successful, redirecting user with role:", data.user.role)
+
+      // Redirect based on user role
+      if (data.user.role === "admin") {
+        router.push("/admin")
+      } else {
+        router.push("/staff")
+      }
+    } catch (err) {
+      console.error("[v0] Registration error:", err)
+      setError(err instanceof Error ? err.message : "Error al crear la cuenta")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="p-3 bg-primary rounded-lg">
+              <Building2 className="h-8 w-8 text-primary-foreground" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-balance">Crear Cuenta</CardTitle>
+          <CardDescription className="text-pretty">
+            Completa los datos para crear tu cuenta en el sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Nombre completo</Label>
+              <Input
+                id="fullName"
+                type="text"
+                placeholder="Juan Pérez"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="usuario@institucion.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="role">Rol</Label>
+              <Select value={role} onValueChange={setRole} required disabled={isLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tu rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cleaning_staff">Personal de Limpieza</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando cuenta...
+                </>
+              ) : (
+                "Crear Cuenta"
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <Link
+              href="/login"
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver al inicio de sesión
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
