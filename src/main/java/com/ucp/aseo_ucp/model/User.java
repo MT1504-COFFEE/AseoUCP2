@@ -1,5 +1,3 @@
-// src/main/java/com/ucp/aseo_ucp/model/User.java
-
 package com.ucp.aseo_ucp.model;
 
 import jakarta.persistence.Column;
@@ -14,7 +12,7 @@ import lombok.Data;
 
 @Entity
 @Table(name = "users")
-@Data // Anotación de Lombok para generar getters, setters, etc.
+@Data
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,9 +21,11 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
+    // Le decimos a JPA que esta variable corresponde a la columna 'password_hash'
     @Column(name = "password_hash", nullable = false)
-    private String password; // Cambiamos el nombre para simplicidad
+    private String password;
 
+    // Le decimos a JPA que esta variable corresponde a la columna 'full_name'
     @Column(name = "full_name", nullable = false)
     private String fullName;
 

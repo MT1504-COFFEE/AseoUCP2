@@ -1,7 +1,6 @@
-// src/main/java/com/ucp/aseo_ucp/controller/CleaningController.java
-
 package com.ucp.aseo_ucp.controller;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -11,33 +10,61 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api")
-// ¡MUY IMPORTANTE! Esto permite que tu frontend (en localhost:3000) pueda hablar con tu backend.
+@RequestMapping("/api") // Todas las rutas empezarán con /api
 @CrossOrigin(origins = "http://localhost:3000")
 public class CleaningController {
 
-    // Este método responde a GET /api/bathrooms
+    // --- Aquí iría la lógica de negocio (en @Services) ---
+
     @GetMapping("/bathrooms")
-    public ResponseEntity<List<Map<String, Object>>> getBathrooms() {
-        // Aquí iría la lógica para buscar los baños en la base de datos.
-        // Por ahora, devolvemos una lista vacía para que la conexión funcione.
-        System.out.println("Petición recibida en /api/bathrooms");
-        return ResponseEntity.ok(List.of());
+    public ResponseEntity<List<?>> getBathrooms() {
+        System.out.println("Petición para obtener lista de baños.");
+        // TODO: Implementar la lógica para devolver la lista de baños desde la BD.
+        return ResponseEntity.ok(Collections.emptyList());
     }
 
-    // Este método responde a POST /api/cleaning-activities
     @PostMapping("/cleaning-activities")
-    public ResponseEntity<Map<String, String>> createCleaningActivity(@RequestBody Map<String, Object> payload) {
-        // Aquí recibes los datos del formulario de limpieza.
-        System.out.println("Actividad de limpieza recibida: " + payload.toString());
-        return ResponseEntity.ok(Map.of("message", "Actividad registrada exitosamente"));
+    public ResponseEntity<?> createActivity(@RequestBody Map<String, Object> activity) {
+        System.out.println("Registrando actividad de limpieza: " + activity.toString());
+        // TODO: Guardar la actividad en la base de datos.
+        return ResponseEntity.ok(Map.of("message", "Actividad creada exitosamente"));
     }
 
-    // Debes crear un método para cada endpoint que tu frontend necesita:
-    // @PostMapping("/incidents")
-    // @PostMapping("/upload")
-    // etc.
+    @GetMapping("/cleaning-activities")
+    public ResponseEntity<List<?>> getActivities() {
+        System.out.println("Petición para obtener historial de limpieza.");
+        // TODO: Devolver el historial de actividades desde la BD.
+        return ResponseEntity.ok(Collections.emptyList());
+    }
+
+    @PostMapping("/incidents")
+    public ResponseEntity<?> createIncident(@RequestBody Map<String, Object> incident) {
+        System.out.println("Registrando incidente: " + incident.toString());
+        // TODO: Guardar el incidente en la base de datos.
+        return ResponseEntity.ok(Map.of("message", "Incidente creado exitosamente"));
+    }
+
+    @GetMapping("/incidents")
+    public ResponseEntity<List<?>> getIncidents() {
+        System.out.println("Petición para obtener lista de incidentes.");
+        // TODO: Devolver la lista de incidentes desde la BD.
+        return ResponseEntity.ok(Collections.emptyList());
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
+        System.out.println("Recibido archivo para subir: " + file.getOriginalFilename());
+        // TODO: Implementar la lógica para guardar el archivo y devolver la URL.
+        return ResponseEntity.ok(Map.of(
+            "url", "/placeholder.svg?query=uploaded-file",
+            "type", file.getContentType().startsWith("image") ? "image" : "video",
+            "filename", file.getOriginalFilename(),
+            "size", file.getSize()
+        ));
+    }
 }
