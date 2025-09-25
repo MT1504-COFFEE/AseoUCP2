@@ -1,21 +1,19 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { apiClient } from "@/lib/api-client"
+// 1. IMPORTAMOS la interface User desde su único lugar de origen
+import { saveAuthToken, saveUser, getUser, removeAuthToken, removeUser, type User } from "@/lib/auth"
 
-interface User {
-  id: number
-  email: string
-  full_name: string
-  role: "cleaning_staff" | "admin"
-}
+// 2. Ya no necesitamos declarar la interface aquí
 
 interface AuthContextType {
   user: User | null
   isLoading: boolean
-  logout: () => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -26,34 +24,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    checkAuth()
+    const storedUser = getUser()
+    if (storedUser) {
+      setUser(storedUser)
+    }
+    setIsLoading(false)
   }, [])
 
-  const checkAuth = async () => {
-    try {
-      const response = await fetch("/api/auth/me")
-      if (response.ok) {
-        const data = await response.json()
-        setUser(data.user)
-      }
-    } catch (error) {
-      console.error("Auth check failed:", error)
-    } finally {
-      setIsLoading(false)
+  const login = async (email: string, password: string) => {
+    const data = await apiClient.login(email, password)
+
+    // 3. Ahora TypeScript sabe exactamente cómo debe ser el objeto 'user'
+    const loggedInUser: User = {
+        id: data.user.id,
+        email: data.user.email,
+        fullName: data.user.fullName, // Usamos fullName
+        role: data.user.role
+    };
+
+    saveAuthToken(data.token)
+    saveUser(loggedInUser)
+    setUser(loggedInUser)
+
+    if (loggedInUser.role === "admin") {
+      router.push("/admin")
+    } else {
+      router.push("/staff")
     }
   }
 
-  const logout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" })
-      setUser(null)
-      router.push("/login")
-    } catch (error) {
-      console.error("Logout failed:", error)
-    }
+  const logout = () => {
+    removeAuthToken()
+    removeUser()
+    setUser(null)
+    router.push("/login")
   }
 
-  return <AuthContext.Provider value={{ user, isLoading, logout }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

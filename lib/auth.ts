@@ -1,7 +1,7 @@
 export interface User {
   id: number
   email: string
-  full_name: string
+  fullName: string // <--- ¡Cambiado a camelCase!
   role: "cleaning_staff" | "admin"
 }
 

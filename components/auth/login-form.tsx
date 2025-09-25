@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth/auth-provider" // Importamos useAuth
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,15 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Building2, UserPlus } from "lucide-react"
 import Link from "next/link"
-import { apiClient } from "@/lib/api-client"
-import { saveAuthToken, saveUser } from "@/lib/auth"
 
 export function LoginForm() {
+  const { login } = useAuth() // Obtenemos la función login del contexto
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,21 +24,9 @@ export function LoginForm() {
     setError("")
 
     try {
-      console.log("[v0] Attempting login with:", { email })
-
-      const data = await apiClient.login(email, password)
-
-      console.log("[v0] Login successful, user data:", data.user)
-
-      saveAuthToken(data.token)
-      saveUser(data.user)
-
-      // Redirect based on user role
-      if (data.user.role === "admin") {
-        router.push("/admin")
-      } else {
-        router.push("/staff")
-      }
+      // Simplemente llamamos a la función centralizada de login
+      await login(email, password)
+      // La redirección ahora ocurre dentro de la función login del AuthProvider
     } catch (err) {
       console.error("[v0] Login error:", err)
       setError(err instanceof Error ? err.message : "Error al iniciar sesión")
@@ -49,8 +35,9 @@ export function LoginForm() {
     }
   }
 
+  // ... el resto del componente (el return con el JSX) se mantiene exactamente igual
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
