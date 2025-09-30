@@ -24,7 +24,7 @@ export function AdminHeader() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm">
               <Shield className="h-4 w-4" />
-              <span className="font-medium">{user?.full_name}</span>
+              <span className="font-medium">{user?.fullName}</span>
             </div>
             <Button variant="outline" size="sm" onClick={logout}>
               <LogOut className="h-4 w-4 mr-2" />
