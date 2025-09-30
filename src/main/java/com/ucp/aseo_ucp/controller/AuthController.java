@@ -3,8 +3,9 @@ package com.ucp.aseo_ucp.controller;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService; // 1. Importamos la herramienta JWT
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,27 +17,32 @@ import com.ucp.aseo_ucp.dto.LoginRequest;
 import com.ucp.aseo_ucp.dto.RegisterRequest;
 import com.ucp.aseo_ucp.model.User;
 import com.ucp.aseo_ucp.service.AuthService;
+import com.ucp.aseo_ucp.util.JwtUtil;
 
-import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "http://localhost:3000")
+@RequiredArgsConstructor // Usamos esto para inyectar las dependencias
 public class AuthController {
 
-    @Autowired
-    private AuthService authService;
+    // Inyectamos todas las herramientas que necesitamos a través del constructor
+    private final AuthService authService;
+    private final JwtUtil jwtUtil;
+    private final UserDetailsService userDetailsService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
             User newUser = authService.registerUser(request);
-            // TODO: Generar un token JWT real.
-            String mockToken = "fake-jwt-token-for-" + newUser.getEmail();
+            
+            // 2. Generamos un TOKEN REAL para el nuevo usuario
+            final UserDetails userDetails = userDetailsService.loadUserByUsername(newUser.getEmail());
+            final String token = jwtUtil.generateToken(userDetails);
 
-            // Estructuramos la respuesta como la espera el frontend.
             Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("token", mockToken);
+            responseBody.put("token", token);
             responseBody.put("user", newUser);
 
             return ResponseEntity.ok(responseBody);
@@ -48,29 +54,25 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            // 1. Llamamos al servicio para validar las credenciales.
             User user = authService.loginUser(request);
 
-            // TODO: Generar un token JWT real.
-            String mockToken = "fake-jwt-token-for-" + user.getEmail();
+            // 3. Generamos un TOKEN REAL para el usuario que inicia sesión
+            final UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+            final String token = jwtUtil.generateToken(userDetails);
 
-            // 2. Creamos el cuerpo de la respuesta en el formato exacto que el frontend necesita.
             Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("token", mockToken);
+            responseBody.put("token", token);
             responseBody.put("user", user);
 
             return ResponseEntity.ok(responseBody);
         } catch (RuntimeException e) {
-            // 3. Si las credenciales son inválidas, devolvemos un error 401.
             return ResponseEntity.status(401).body(java.util.Map.of("error", e.getMessage()));
         }
     }
-
-    // --- Métodos restantes como placeholders ---
-
+    
+    // Dejamos los otros métodos como estaban por ahora
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(HttpServletRequest request) {
-        // TODO: Implementar lógica para obtener usuario desde un token JWT real.
+    public ResponseEntity<?> getCurrentUser() {
         return ResponseEntity.status(501).body(java.util.Map.of("message", "GetCurrentUser no implementado"));
     }
 
