@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Camera, X, FileImage, FileVideo, Loader2 } from "lucide-react"
+import { apiClient } from "@/lib/api-client" // 1. IMPORTAMOS NUESTRO apiClient
 
 interface FileUploadProps {
   onUpload: (url: string, type: "image" | "video") => void
@@ -24,9 +24,7 @@ export function FileUpload({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState("")
-  const [uploadedFile, setUploadedFile] = useState<{ url: string; type: "image" | "video"; filename: string } | null>(
-    null,
-  )
+  const [uploadedFile, setUploadedFile] = useState<{ url: string; type: string; filename: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = async (file: File) => {
@@ -35,54 +33,31 @@ export function FileUpload({
     setUploadProgress(0)
 
     try {
-      // Validate file size
       if (file.size > maxSize) {
         throw new Error(`El archivo es demasiado grande. Tamaño máximo: ${Math.round(maxSize / 1024 / 1024)}MB`)
       }
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval)
-            return 90
-          }
-          return prev + 10
-        })
-      }, 100)
+      // 2. USAMOS el apiClient para subir el archivo.
+      // Este se encargará de enviarlo al backend de Spring Boot Y de añadir el token de autenticación.
+      const data = await apiClient.uploadFile(file);
 
-      const formData = new FormData()
-      formData.append("file", file)
+      setUploadProgress(100) // Simulación final
 
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      clearInterval(progressInterval)
-      setUploadProgress(100)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Error al subir el archivo")
-      }
-
-      const data = await response.json()
       setUploadedFile({
         url: data.url,
         type: data.type,
-        filename: file.name,
+        filename: data.filename,
       })
 
-      onUpload(data.url, data.type)
+      onUpload(data.url, data.type as "image" | "video")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al subir el archivo")
     } finally {
       setIsUploading(false)
-      setTimeout(() => setUploadProgress(0), 1000)
     }
   }
 
+  // El resto del archivo no cambia...
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -104,6 +79,7 @@ export function FileUpload({
 
   const removeFile = () => {
     setUploadedFile(null)
+    onUpload("", "image"); // Limpiamos la URL en el formulario padre
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -125,9 +101,6 @@ export function FileUpload({
             <div>
               <p className="text-sm font-medium">Subir evidencia</p>
               <p className="text-xs text-muted-foreground">Arrastra y suelta o haz clic para seleccionar</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Imágenes y videos hasta {Math.round(maxSize / 1024 / 1024)}MB
-              </p>
             </div>
           </div>
         </div>
@@ -142,15 +115,10 @@ export function FileUpload({
               )}
               <div>
                 <p className="text-sm font-medium">{uploadedFile.filename}</p>
-                <p className="text-xs text-muted-foreground">Archivo subido exitosamente</p>
+                <p className="text-xs text-muted-foreground">Archivo subido</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={removeFile}
-              className="text-muted-foreground hover:text-destructive"
-            >
+            <Button variant="ghost" size="sm" onClick={removeFile} className="text-muted-foreground hover:text-destructive">
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -159,10 +127,6 @@ export function FileUpload({
 
       {isUploading && (
         <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Subiendo archivo...</span>
-          </div>
           <Progress value={uploadProgress} className="w-full" />
         </div>
       )}

@@ -43,7 +43,7 @@ export default function StaffPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-balance mb-2">Bienvenido, {user.full_name}</h2>
+            <h2 className="text-3xl font-bold text-balance mb-2">Bienvenido, {user.fullName}</h2>
             <p className="text-muted-foreground text-pretty">
               Registra tus actividades de limpieza y reporta cualquier incidente que encuentres
             </p>
