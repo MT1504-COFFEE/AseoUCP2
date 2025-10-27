@@ -50,7 +50,7 @@ export function CleaningForm() {
 
   const fetchBathrooms = async () => {
     try {
-      const response = await fetch("/api/bathrooms")
+      const response = await fetch("http://localhost:8080/api/incidents")
       const data = await response.json()
       setBathrooms(data.bathrooms || [])
     } catch (error) {

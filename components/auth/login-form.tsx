@@ -1,3 +1,5 @@
+// FORMULARIO LOGIN
+
 "use client"
 
 import type React from "react"
@@ -37,16 +39,16 @@ export function LoginForm() {
 
   // ... el resto del componente (el return con el JSX) se mantiene exactamente igual
   return (
-     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+     <div className="min-h-screen flex items-center justify-center bg-[url('/Ucatolica.jpeg')] bg-cover bg-center bg-no-repeat bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-  <img
-    src="/ImagenUniversidadCatolicadePereira.png" // o el nombre de tu archivo
-    alt="Logo del Sistema"
-    className="h-16 w-auto"
-  />
-  </div>
+            <img
+              src="/ImagenUniversidadCatolicadePereira.png" 
+              alt="Logo del Sistema"
+              className="h-16 w-auto"
+            />
+          </div>
 
           <CardTitle className="text-2xl font-bold text-balance">Sistema de Gestión de Limpieza</CardTitle>
           <CardDescription className="text-pretty">Ingresa tus credenciales para acceder al sistema</CardDescription>

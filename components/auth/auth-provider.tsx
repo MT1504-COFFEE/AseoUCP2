@@ -1,3 +1,5 @@
+//MANEJO DE AUTENTICACIÓN Y CONTEXTO DE USUARIO
+
 "use client"
 
 import type React from "react"
