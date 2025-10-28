@@ -39,7 +39,7 @@ export function LoginForm() {
 
   // ... el resto del componente (el return con el JSX) se mantiene exactamente igual
   return (
-     <div className="min-h-screen flex items-center justify-center bg-[url('/Ucatolica.jpeg')] bg-cover bg-center bg-no-repeat bg-muted/30 p-4">
+     <div className="min-h-screen flex items-center justify-center bg-[url('/14.febrero.jpg')] bg-cover bg-center bg-no-repeat bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
