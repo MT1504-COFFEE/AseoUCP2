@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react" // Añade useRef
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,50 +11,80 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FileUpload } from "@/components/ui/file-upload"
 import { Loader2, AlertTriangle, CheckCircle } from "lucide-react"
+import { apiClient } from "@/lib/api-client"; // Importa apiClient
+import { useAuth } from "@/components/auth/auth-provider"; // Importa useAuth
 
-interface Bathroom {
-  id: number
-  name: string
-  gender: string
-  floor_name: string
-  building_name: string
+// Interfaz que coincide con BathroomDto del backend
+interface BathroomDto {
+  id: number;
+  name: string;
+  floor: number | null;
+  building: string | null;
 }
 
+// Interfaz para el payload de creación de incidente
+interface IncidentPayload {
+    bathroomId: number;
+    title: string;
+    description: string | null;
+    priority: "low" | "medium" | "high";
+    photos: string[];
+}
+
+
 export function IncidentForm() {
-  const [bathrooms, setBathrooms] = useState<Bathroom[]>([])
+  const [bathrooms, setBathrooms] = useState<BathroomDto[]>([]) // Usa BathroomDto
   const [selectedBathroom, setSelectedBathroom] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
-  const [priority, setPriority] = useState("medium")
-  const [evidenceUrl, setEvidenceUrl] = useState<string | null>(null)
-  const [evidenceType, setEvidenceType] = useState<"image" | "video" | null>(null)
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium"); // Tipado explícito
+  const [photos, setPhotos] = useState<string[]>([]); // Almacena URLs de fotos
   const [isLoading, setIsLoading] = useState(false)
+  const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(true); // Estado para carga
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+  const { user } = useAuth(); // Obtén usuario
+  const fileUploadRef = useRef<{ reset: () => void }>(null); // Ref para resetear FileUpload
 
   useEffect(() => {
-    fetchBathrooms()
-  }, [])
+     if (user) { // Carga baños si hay usuario
+        fetchBathrooms();
+    } else {
+        setIsFetchingBathrooms(false); // No cargar si no hay usuario
+    }
+  }, [user])
 
   const fetchBathrooms = async () => {
+    setIsFetchingBathrooms(true);
+    setError(""); // Limpia errores previos al cargar
     try {
-      const response = await fetch("/api/bathrooms")
-      const data = await response.json()
-      setBathrooms(data.bathrooms || [])
+      // --- CORRECCIÓN AQUÍ ---
+      const data = await apiClient.getBathrooms(); // Usa apiClient.getBathrooms
+      console.log("Baños recibidos (IncidentForm):", data); // Verifica
+      setBathrooms(data || [])
     } catch (error) {
       console.error("Error fetching bathrooms:", error)
+      setError("No se pudieron cargar los baños."); // Mensaje específico
+      setBathrooms([])
+    } finally {
+      setIsFetchingBathrooms(false);
     }
   }
 
   const handleFileUpload = (url: string, type: "image" | "video") => {
-    setEvidenceUrl(url)
-    setEvidenceType(type)
+    if (url) {
+        setPhotos((prev) => [...prev, url]);
+    }
   }
+   // Función para quitar una foto (si la UI lo permite)
+   const removePhoto = (urlToRemove: string) => {
+    setPhotos((prev) => prev.filter(url => url !== urlToRemove));
+   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedBathroom || !title.trim() || !description.trim()) {
-      setError("Por favor completa todos los campos requeridos")
+      setError("Por favor completa todos los campos requeridos (*)")
       return
     }
 
@@ -63,27 +92,20 @@ export function IncidentForm() {
     setError("")
     setSuccess(false)
 
+    // Construye el payload según la interfaz
+    const incidentPayload: IncidentPayload = {
+        bathroomId: Number.parseInt(selectedBathroom),
+        title: title.trim(),
+        description: description.trim() || null,
+        priority: priority,
+        photos: photos
+    };
+
+
     try {
-      const response = await fetch("/api/incidents", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          bathroom_id: Number.parseInt(selectedBathroom),
-          title: title.trim(),
-          description: description.trim(),
-          priority,
-          evidence_url: evidenceUrl,
-          evidence_type: evidenceType,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al reportar el incidente")
-      }
+      // --- CORRECCIÓN AQUÍ ---
+      // Usa apiClient.createIncident con el payload correcto
+      await apiClient.createIncident(incidentPayload);
 
       setSuccess(true)
       // Reset form
@@ -91,13 +113,17 @@ export function IncidentForm() {
       setTitle("")
       setDescription("")
       setPriority("medium")
-      setEvidenceUrl(null)
-      setEvidenceType(null)
+      setPhotos([]);
+      // Resetea el componente FileUpload si tienes la ref configurada
+      // fileUploadRef.current?.reset(); // Necesitarías exponer un método reset en FileUpload
 
-      // Hide success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al reportar el incidente")
+      console.error("Error reportando incidente:", err);
+      // Intenta obtener un mensaje más específico del error si es posible
+      const apiError = err instanceof Error ? err.message : "Error desconocido";
+      const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/); // Intenta extraer el JSON
+      setError(errorDetailMatch ? errorDetailMatch[1] : apiError);
     } finally {
       setIsLoading(false)
     }
@@ -117,18 +143,32 @@ export function IncidentForm() {
           {/* Bathroom Selection */}
           <div className="space-y-2">
             <Label htmlFor="bathroom">Seleccionar Baño *</Label>
-            <Select value={selectedBathroom} onValueChange={setSelectedBathroom}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona el baño donde ocurrió el incidente" />
+            <Select
+                value={selectedBathroom}
+                onValueChange={setSelectedBathroom}
+                required
+                disabled={isFetchingBathrooms || isLoading}
+            >
+              <SelectTrigger id="bathroom">
+                <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño donde ocurrió el incidente"} />
               </SelectTrigger>
               <SelectContent>
-                {bathrooms.map((bathroom) => (
-                  <SelectItem key={bathroom.id} value={bathroom.id.toString()}>
-                    {bathroom.building_name} - {bathroom.floor_name} - {bathroom.name}
-                  </SelectItem>
-                ))}
+                 {isFetchingBathrooms ? (
+                    <SelectItem value="loading" disabled>Cargando...</SelectItem>
+                ) : bathrooms.length === 0 ? (
+                    <SelectItem value="no-options" disabled>No hay baños disponibles</SelectItem>
+                ) : (
+                  bathrooms.map((bathroom) => (
+                    <SelectItem key={bathroom.id} value={bathroom.id.toString()}>
+                      {`${bathroom.building || 'Edif.?'} - ${bathroom.floor ? `Piso ${bathroom.floor}` : 'Piso?'} - ${bathroom.name}`}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
+             {!isFetchingBathrooms && bathrooms.length === 0 && error.includes("cargar los baños") && (
+                <p className="text-sm text-destructive mt-1">{error}</p>
+             )}
           </div>
 
           {/* Title */}
@@ -140,14 +180,15 @@ export function IncidentForm() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
+              disabled={isLoading}
             />
           </div>
 
           {/* Priority */}
           <div className="space-y-2">
             <Label htmlFor="priority">Prioridad</Label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger>
+            <Select value={priority} onValueChange={(value) => setPriority(value as "low" | "medium" | "high")} disabled={isLoading}>
+              <SelectTrigger id="priority">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -168,34 +209,50 @@ export function IncidentForm() {
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
               required
+              disabled={isLoading}
             />
           </div>
 
           {/* Evidence Upload */}
           <div className="space-y-2">
             <Label>Evidencia (Foto o Video)</Label>
+            {/* Si necesitas resetearlo, pasa la ref: <FileUpload ref={fileUploadRef} onUpload={handleFileUpload} /> */}
             <FileUpload onUpload={handleFileUpload} />
+             {/* Opcional: Mostrar lista de archivos subidos */}
+             {photos.length > 0 && (
+                <div className="mt-2 space-y-1">
+                    <p className="text-xs text-muted-foreground">Archivos subidos:</p>
+                    <ul className="list-disc list-inside text-xs">
+                        {photos.map((url, index) => (
+                            <li key={index} className="truncate">
+                                {url.substring(url.lastIndexOf('/') + 1)}
+                                {/* Podrías añadir un botón aquí para llamar a removePhoto(url) */}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+             )}
             <p className="text-xs text-muted-foreground">
               Adjunta una foto o video que muestre el problema para facilitar su resolución
             </p>
           </div>
 
-          {error && (
+          {error && !error.includes("cargar los baños") && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           {success && (
-            <Alert className="border-green-200 bg-green-50 text-green-800">
+            <Alert className="border-green-200 bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-200 dark:border-green-700">
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
-                Incidente reportado exitosamente. El equipo de mantenimiento será notificado.
+                Incidente reportado exitosamente.
               </AlertDescription>
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || isFetchingBathrooms || !selectedBathroom}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -210,3 +267,6 @@ export function IncidentForm() {
     </Card>
   )
 }
+
+// Asegúrate de importar Label o tenerla definida globalmente
+// import { Label } from "@/components/ui/label";
