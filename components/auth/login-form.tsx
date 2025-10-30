@@ -30,8 +30,8 @@ export function LoginForm() {
       await login(email, password)
       // La redirección ahora ocurre dentro de la función login del AuthProvider
     } catch (err) {
-      console.error("[v0] Login error:", err)
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión")
+      console.error("Login error:", err)
+      setError("Correo electrónico o contraseña incorrectos. Inténtalo de nuevo.")
     } finally {
       setIsLoading(false)
     }

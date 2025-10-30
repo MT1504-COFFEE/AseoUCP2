@@ -1,10 +1,9 @@
-//FORMULARIO REGISTRO //CREAR CUENTA
-
+// En: components/auth/register-form.tsx
 "use client"
 
 import type React from "react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation" // useRouter ya no es necesario aquí
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,7 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Building2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
-import { saveAuthToken, saveUser } from "@/lib/auth"
+// --- IMPORTA useAuth ---
+import { useAuth } from "@/components/auth/auth-provider"
+// Ya no necesitamos esto:
+// import { saveAuthToken, saveUser } from "@/lib/auth"
 
 export function RegisterForm() {
   const [email, setEmail] = useState("")
@@ -23,7 +25,10 @@ export function RegisterForm() {
   const [role, setRole] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const router = useRouter()
+  // const router = useRouter() // Ya no lo usamos, 'authenticate' redirige
+  
+  // --- OBTÉN 'authenticate' DEL CONTEXTO ---
+  const { authenticate } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,29 +38,35 @@ export function RegisterForm() {
     try {
       console.log("[v0] Attempting registration with:", { email, fullName, role })
 
+      // Llama a la API (esto está bien)
       const data = await apiClient.register({ email, password, fullName, role })
 
       console.log("[v0] Registration successful, user data:", data.user)
 
-      saveAuthToken(data.token)
-      saveUser(data.user)
+      // --- ¡CAMBIO CLAVE! ---
+      // Llama a la función 'authenticate' del AuthProvider
+      // Esta función se encargará de guardar, actualizar el estado Y redirigir
+      authenticate(data.user, data.token)
 
-      // Redirect based on user role
-      if (data.user.role === "admin") {
-        router.push("/admin")
-      } else {
-        router.push("/staff")
-      }
+      // Ya no necesitamos estas líneas:
+      // saveAuthToken(data.token)
+      // saveUser(data.user)
+      // if (data.user.role === "admin") { ... }
+
     } catch (err) {
       console.error("[v0] Registration error:", err)
-      setError(err instanceof Error ? err.message : "Error al crear la cuenta")
+      const apiError = err instanceof Error ? err.message : "Error al crear la cuenta";
+      // Intenta mostrar un error más limpio
+      const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/);
+      setError(errorDetailMatch ? errorDetailMatch[1] : apiError);
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[url('/Catolica.jpg')] bg-cover bg-center bg-no-repeat bg-muted/30 p-4">
+    // ... (El JSX del formulario no cambia) ...
+    <div className="min-h-screen flex items-center justify-center bg-[url('/Ucatolica.jpeg')] bg-cover bg-center bg-no-repeat bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -74,7 +85,8 @@ export function RegisterForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+            {/* ... (Inputs del formulario) ... */}
+             <div className="space-y-2">
               <Label htmlFor="fullName">Nombre completo</Label>
               <Input
                 id="fullName"

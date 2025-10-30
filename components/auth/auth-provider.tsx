@@ -16,6 +16,8 @@ interface AuthContextType {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  // --- AÑADE ESTA LÍNEA ---
+  authenticate: (user: User, token: string) => void // Función para actualizar estado y redirigir
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -33,10 +35,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false)
   }, [])
 
+  // --- NUEVA FUNCIÓN CENTRALIZADA ---
+  // Esta función maneja el guardado, la actualización del estado Y la redirección
+  const authenticate = (user: User, token: string) => {
+    saveAuthToken(token)
+    saveUser(user)
+    setUser(user) // <-- ¡EL PASO CLAVE! Actualiza el estado en memoria.
+
+    // Redirige según el rol
+    if (user.role === "admin") {
+      router.push("/admin")
+    } else {
+      router.push("/staff")
+    }
+  }
+  // --- FIN DE LA NUEVA FUNCIÓN ---
+
   const login = async (email: string, password: string) => {
     const data = await apiClient.login(email, password)
 
-    // 3. Ahora TypeScript sabe exactamente cómo debe ser el objeto 'user'
     const loggedInUser: User = {
         id: data.user.id,
         email: data.user.email,
@@ -44,15 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: data.user.role
     };
 
-    saveAuthToken(data.token)
-    saveUser(loggedInUser)
-    setUser(loggedInUser)
-
-    if (loggedInUser.role === "admin") {
-      router.push("/admin")
-    } else {
-      router.push("/staff")
-    }
+    // --- USA LA NUEVA FUNCIÓN ---
+    // En lugar de repetir la lógica, llama a la función centralizada
+    authenticate(loggedInUser, data.token)
   }
 
   const logout = () => {
@@ -63,7 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    // --- AÑADE 'authenticate' AL VALOR DEL PROVIDER ---
+    <AuthContext.Provider value={{ user, isLoading, login, logout, authenticate }}>
       {children}
     </AuthContext.Provider>
   )
