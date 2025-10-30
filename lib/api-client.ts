@@ -85,6 +85,13 @@ export class ApiClient {
     })
   }
 
+  async updateIncidentStatus(id: number, status: "pending" | "in_progress" | "resolved") {
+    return this.request<any>(`/incidents/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status: status }), // Envía {"status": "valor"}
+    });
+  }
+
   async updateCleaningActivity(id: number, activity: any) {
     return this.request<any>(`/cleaning-activities/${id}`, {
       method: "PUT",
