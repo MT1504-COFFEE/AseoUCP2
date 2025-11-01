@@ -12,46 +12,56 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter, 
+  DialogClose,  
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select" 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs" 
-import { AlertTriangle, Calendar, MapPin, User, Eye, ImageIcon, Video, Loader2, History, CheckCircle, ArrowRight } from "lucide-react" 
-// --- 1. CORRECCIÓN DE IMPORTACIÓN ---
-// Importamos 'startOfDay' (aunque no se usa en este archivo) y el resto desde 'date-fns'
-import { parseISO, differenceInDays, startOfDay } from "date-fns" 
-// Importamos SÓLO 'format' desde 'date-fns-tz'
-import { format } from "date-fns-tz" 
+import { AlertTriangle, Calendar, MapPin, User, Eye, ImageIcon, Video, Loader2, History, CheckCircle, ArrowRight, UserCheck } from "lucide-react" 
+import { parseISO } from "date-fns" 
+import { format } from "date-fns-tz" // Importa format de date-fns-tz
 import { es } from "date-fns/locale"
-// -------------------------------------
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner"; // <-- ¡IMPORTACIÓN NECESARIA PARA NOTIFICACIONES!
+import { toast } from "sonner";
+import type { User as AuthUser } from "@/lib/auth" 
 
-// Interfaz que coincide con IncidentDto del backend
+// 1. Interfaz de Incidente actualizada
 interface IncidentDto {
   id: number;
   title: string;
   description: string | null;
   status: "pending" | "in_progress" | "resolved";
   priority: "low" | "medium" | "high";
-  createdAt: string; // Recibido como string ISO 8601
-  resolvedAt: string | null; // Recibido como string ISO 8601
+  createdAt: string; 
+  resolvedAt: string | null; 
   bathroomId: number | null;
   bathroomName: string | null;
   buildingName: string | null;
-  floorName: string | null;
+  floorName: string | null; 
   reportedById: number | null;
   reportedByName: string | null;
   photos: string[];
+  assignedToId: number | null; // <-- NUEVO
+  assignedToName: string | null; // <-- NUEVO
 }
 
-// Tipos explícitos para claves de mapeo
+// Interfaz para usuarios (colaboradores)
+type StaffUser = AuthUser;
+
 type Priority = IncidentDto['priority'];
 type Status = IncidentDto['status'];
 
-// Mapeos de Colores
+// Mapeos (sin cambios)
 const priorityColors: Record<Priority, string> = {
   high: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-200 dark:border-red-700",
   medium: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-200 dark:border-yellow-700",
@@ -62,22 +72,27 @@ const statusColors: Record<Status, string> = {
   in_progress: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-700",
   resolved: "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-200 dark:border-green-700",
 };
-
-// Mapeos de Etiquetas
 const priorityLabels: Record<Priority, string> = { low: "Baja", medium: "Media", high: "Alta" };
 const statusLabels: Record<Status, string> = { pending: "Pendiente", in_progress: "En Progreso", resolved: "Resuelto" };
 
 
 export function IncidentsDashboard() {
   
-  // --- HOOKS ---
   const [incidents, setIncidents] = useState<IncidentDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null);
   const { user, isLoading: isAuthLoading } = useAuth();
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  
+  // --- 2. NUEVOS ESTADOS ---
+  const [staffList, setStaffList] = useState<StaffUser[]>([]); 
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false); 
+  const [incidentToAssign, setIncidentToAssign] = useState<IncidentDto | null>(null); 
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null); 
+  const [isAssigning, setIsAssigning] = useState(false); 
+  
+  const [updatingId, setUpdatingId] = useState<number | null>(null); // Para el botón "Resolver"
 
-  // Calcula las métricas
+  // Stats (sin cambios)
   const stats = useMemo(() => {
     if (!incidents) return { total: 0, pending: 0, inProgress: 0, resolved: 0, high: 0 };
     return {
@@ -89,11 +104,12 @@ export function IncidentsDashboard() {
     };
   }, [incidents]);
 
-  // Carga los datos
+  // --- 3. USEEFFECT ACTUALIZADO ---
   useEffect(() => {
     if (isAuthLoading) return;
     if (user && user.role === 'admin') {
         fetchIncidents();
+        fetchStaff(); // Cargar también el personal
     } else if (user && user.role !== 'admin') {
          setError("Acceso denegado.");
          setIsLoading(false);
@@ -103,59 +119,108 @@ export function IncidentsDashboard() {
     }
   }, [user, isAuthLoading])
 
-  // Función para obtener los incidentes
   const fetchIncidents = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiClient.getIncidents();
+      const data = await apiClient.getIncidents(); //
       setIncidents(data || []);
     } catch (err) {
       console.error("Error fetching incidents:", err);
       const apiError = err instanceof Error ? err.message : "Error desconocido";
-      const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/);
-      setError(errorDetailMatch ? errorDetailMatch[1] : apiError);
+      setError(apiError);
       setIncidents([]);
     } finally {
       setIsLoading(false);
     }
   }
 
-  // --- FUNCIÓN DE ACTUALIZACIÓN DE ESTADO (CORREGIDA) ---
-  const handleStatusChange = async (incidentId: number, newStatus: Status) => {
-    setUpdatingId(incidentId); // Muestra spinner en el botón
+  // --- 4. NUEVA FUNCIÓN: OBTENER PERSONAL ---
+  const fetchStaff = async () => {
     try {
-        // 1. Llama al API
-        const updatedIncident: IncidentDto = await apiClient.updateIncidentStatus(incidentId, newStatus);
-        
-        // 2. Actualiza el estado local de forma inmutable
-        // Esta es la forma más segura de garantizar una actualización de estado
-        // que React detectará para re-renderizar todos los componentes hijos.
-        setIncidents((currentIncidents) => {
-          // Crea un *nuevo* array
-          return currentIncidents.map(incident => {
-            // Si este es el incidente que cambió, devuelve la nueva versión
-            if (incident.id === incidentId) {
-              return updatedIncident;
-            }
-            // De lo contrario, devuelve el incidente sin cambios
-            return incident;
-          });
-        });
-
-        toast.success(`Incidente #${incidentId} actualizado a "${statusLabels[newStatus]}"`);
+      const users = await apiClient.getUsers(); //
+      const staff = users.filter((u: StaffUser) => u.role === 'cleaning_staff');
+      setStaffList(staff || []);
     } catch (err) {
-        console.error("Error updating incident status:", err);
-        toast.error("Error al actualizar el incidente.");
-        const apiError = err instanceof Error ? err.message : "Error desconocido";
-        const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/);
-        setError(errorDetailMatch ? errorDetailMatch[1] : "Error al actualizar.");
-    } finally {
-        setUpdatingId(null); // Oculta spinner
+      console.error("Error fetching staff:", err);
+      toast.error("No se pudo cargar la lista del personal.");
     }
   }
 
-  // --- Renderizados condicionales ---
+  // --- 5. FUNCIONES PARA CONTROLAR EL MODAL ---
+  const handleOpenAssignModal = (incident: IncidentDto) => {
+    setIncidentToAssign(incident);
+    setSelectedStaffId(null); 
+    setIsAssignModalOpen(true);
+  }
+
+  const handleCloseAssignModal = () => {
+    if (isAssigning) return; 
+    setIsAssignModalOpen(false);
+    setIncidentToAssign(null);
+    setSelectedStaffId(null);
+  }
+
+  // --- 6. FUNCIÓN DE ASIGNACIÓN ---
+  const handleAssignIncident = async () => {
+    if (!incidentToAssign || !selectedStaffId) {
+      toast.error("Por favor, selecciona un colaborador.");
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const incidentId = incidentToAssign.id;
+      const staffId = Number(selectedStaffId);
+      
+      const updatedIncident: IncidentDto = await apiClient.updateIncidentStatus( //
+        incidentId, 
+        'in_progress', 
+        staffId
+      );
+        
+      setIncidents((currentIncidents) => 
+        currentIncidents.map(incident => 
+          incident.id === incidentId ? updatedIncident : incident
+        )
+      );
+
+      toast.success(`Incidente #${incidentId} asignado.`);
+      handleCloseAssignModal();
+    } catch (err) {
+        console.error("Error assigning incident:", err);
+        toast.error("Error al asignar el incidente.");
+    } finally {
+        setIsAssigning(false);
+    }
+  }
+  
+  // --- 7. FUNCIÓN PARA RESOLVER ---
+  const handleResolveIncident = async (incidentId: number) => {
+    setUpdatingId(incidentId); 
+    try {
+        const updatedIncident: IncidentDto = await apiClient.updateIncidentStatus( //
+          incidentId, 
+          'resolved',
+          null // No enviamos assignedUserId al resolver
+        );
+        
+        setIncidents((currentIncidents) => 
+          currentIncidents.map(incident => 
+            incident.id === incidentId ? updatedIncident : incident
+          )
+        );
+
+        toast.success(`Incidente #${incidentId} marcado como resuelto.`);
+    } catch (err) {
+        console.error("Error resolving incident:", err);
+        toast.error("Error al resolver el incidente.");
+    } finally {
+        setUpdatingId(null);
+    }
+  }
+
+  // --- Renderizados condicionales (sin cambios) ---
   if (isLoading || isAuthLoading) { 
     return (
       <Card>
@@ -181,7 +246,7 @@ export function IncidentsDashboard() {
   // --- RENDERIZADO PRINCIPAL ---
   return (
     <div className="space-y-6">
-      {/* Stats Cards (Métricas Generales) */}
+      {/* Stats Cards (sin cambios) */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card><CardContent className="p-4"><div className="text-2xl font-bold">{stats.total}</div><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
         <Card><CardContent className="p-4"><div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.pending}</div><p className="text-sm text-muted-foreground">Pendientes</p></CardContent></Card>
@@ -190,7 +255,7 @@ export function IncidentsDashboard() {
         <Card><CardContent className="p-4"><div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.high}</div><p className="text-sm text-muted-foreground">Alta Prioridad</p></CardContent></Card>
       </div>
 
-      {/* Pestañas para filtrar incidentes */}
+      {/* Pestañas (sin cambios en estructura) */}
       <Tabs defaultValue="pending" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
            <TabsTrigger value="pending" className="flex items-center gap-2">
@@ -207,7 +272,7 @@ export function IncidentsDashboard() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Pasa la lista filtrada de incidentes a IncidentList */}
+        {/* --- 8. ACTUALIZAR TabsContent (pasando las nuevas props) --- */}
         <TabsContent value="pending">
           <Card>
             <CardHeader><CardTitle>Incidentes Pendientes</CardTitle></CardHeader>
@@ -215,8 +280,9 @@ export function IncidentsDashboard() {
               <IncidentList 
                 incidents={incidents.filter(i => i.status === 'pending')} 
                 currentStatus="pending"
-                updatingId={updatingId}
-                onStatusChange={handleStatusChange}
+                updatingId={updatingId} 
+                onOpenAssignModal={handleOpenAssignModal} 
+                onResolveIncident={handleResolveIncident} 
               />
             </CardContent>
           </Card>
@@ -229,8 +295,9 @@ export function IncidentsDashboard() {
               <IncidentList 
                 incidents={incidents.filter(i => i.status === 'in_progress')} 
                 currentStatus="in_progress"
-                updatingId={updatingId}
-                onStatusChange={handleStatusChange}
+                updatingId={updatingId} 
+                onOpenAssignModal={handleOpenAssignModal}
+                onResolveIncident={handleResolveIncident} 
               />
             </CardContent>
           </Card>
@@ -244,25 +311,84 @@ export function IncidentsDashboard() {
                 incidents={incidents.filter(i => i.status === 'resolved')} 
                 currentStatus="resolved"
                 updatingId={updatingId}
-                onStatusChange={handleStatusChange}
+                onOpenAssignModal={handleOpenAssignModal}
+                onResolveIncident={handleResolveIncident}
               />
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* --- 9. AÑADIR EL MODAL DE ASIGNACIÓN --- */}
+      <Dialog open={isAssignModalOpen} onOpenChange={handleCloseAssignModal}>
+        <DialogContent onInteractOutside={(e) => { if (isAssigning) e.preventDefault(); }}>
+          <DialogHeader>
+            <DialogTitle>Asignar Incidente</DialogTitle>
+            <DialogDescription>
+              Selecciona un colaborador del personal de limpieza para atender esta incidencia.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Incidente</Label>
+              <p className="text-sm font-medium p-3 bg-muted rounded-md">{incidentToAssign?.title}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="staff-select">Asignar a</Label>
+              <Select 
+                value={selectedStaffId || undefined} 
+                onValueChange={setSelectedStaffId}
+                disabled={isAssigning}
+              >
+                <SelectTrigger id="staff-select">
+                  <SelectValue placeholder="Selecciona un colaborador..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {staffList.length > 0 ? (
+                    staffList.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.id.toString()}>
+                        {staff.fullName}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="loading" disabled>Cargando personal...</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseAssignModal} disabled={isAssigning}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleAssignIncident} 
+              disabled={isAssigning || !selectedStaffId}
+            >
+              {isAssigning ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <UserCheck className="h-4 w-4 mr-2" />
+              )}
+              Confirmar Asignación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-// --- COMPONENTE REUTILIZABLE `IncidentList` ---
+// --- 10. ACTUALIZAR `IncidentList` ---
 interface IncidentListProps {
   incidents: IncidentDto[];
   currentStatus: Status; 
   updatingId: number | null; 
-  onStatusChange: (id: number, newStatus: Status) => void; 
+  onOpenAssignModal: (incident: IncidentDto) => void; 
+  onResolveIncident: (id: number) => void; 
 }
 
-function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: IncidentListProps) {
+function IncidentList({ incidents, currentStatus, updatingId, onOpenAssignModal, onResolveIncident }: IncidentListProps) {
   if (incidents.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -302,13 +428,21 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                     <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4 shrink-0"/>
                         <span>
-                        {/* --- 2. CORRECCIÓN DE FORMATO (Línea 210 aprox) --- */}
                         {incident.createdAt
                             ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm", { locale: es, timeZone: "America/Bogota" })
                             : 'Fecha inválida'}
                         </span>
                     </div>
                 </div>
+                
+                {/* --- Mostrar Asignado (NUEVO) --- */}
+                {incident.assignedToName && (
+                  <div className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 font-medium">
+                      <UserCheck className="h-4 w-4 shrink-0" />
+                      <span>Asignado a: {incident.assignedToName}</span>
+                  </div>
+                )}
+
                 <p className="text-sm text-muted-foreground line-clamp-2">{incident.description || 'Sin descripción'}</p>
               </div>
 
@@ -328,7 +462,6 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                             Incidente #{incident.id} - {statusLabels[incident.status]}
                           </DialogDescription>
                         </DialogHeader>
-                        {/* Contenido del modal */}
                         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
@@ -350,17 +483,24 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                             <div>
                               <Label className="text-sm font-medium">Fecha Reporte</Label>
                               <p className="text-sm text-muted-foreground">
-                                {/* --- 3. CORRECCIÓN DE FORMATO (Línea 249 aprox) --- */}
                                 {incident.createdAt
                                   ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm", { locale: es, timeZone: "America/Bogota" })
                                   : 'Fecha inválida'}
                               </p>
                             </div>
+                              
+                              {/* --- Mostrar Asignado (NUEVO) --- */}
+                              {incident.assignedToName && (
+                                <div>
+                                  <Label className="text-sm font-medium">Asignado a</Label>
+                                  <p className="text-sm text-muted-foreground">{incident.assignedToName}</p>
+                                </div>
+                              )}
+
                               {incident.resolvedAt && (
                                 <div>
                                   <Label className="text-sm font-medium">Fecha Resolución</Label>
                                   <p className="text-sm text-muted-foreground">
-                                    {/* --- 4. CORRECCIÓN DE FORMATO (Línea 255 aprox) --- */}
                                     {format(parseISO(incident.resolvedAt), "dd/MM/yyyy HH:mm", { locale: es, timeZone: "America/Bogota" })}
                                   </p>
                                 </div>
@@ -370,7 +510,7 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                             <Label className="text-sm font-medium">Descripción</Label>
                             <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{incident.description || 'N/A'}</p>
                           </div>
-                          {/* Muestra evidencias */}
+                          {/* Evidencia (sin cambios) */}
                           {incident.photos && incident.photos.length > 0 && (
                             <div>
                               <Label className="text-sm font-medium flex items-center gap-2">Evidencia(s)</Label>
@@ -396,23 +536,17 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                   </DialogContent>
                 </Dialog>
 
-                {/* --- BOTÓN DE CAMBIO DE ESTADO --- */}
+                {/* --- BOTONES DE CAMBIO DE ESTADO (ACTUALIZADOS) --- */}
                 {currentStatus === 'pending' && (
                   <Button 
                     size="sm" 
                     className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
-                    disabled={isUpdating}
-                    onClick={() => onStatusChange(incident.id, 'in_progress')}
+                    onClick={() => onOpenAssignModal(incident)} // <-- ESTE ES EL CAMBIO
                   >
-                    {isUpdating ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <span className="hidden sm:inline">Iniciar Progreso</span>
-                        <span className="sm:hidden">Iniciar</span>
-                        <ArrowRight className="h-4 w-4 ml-1 sm:ml-2" />
-                      </>
-                    )}
+                    {/* El texto del botón ahora es "Asignar Tarea" */}
+                    <span className="hidden sm:inline">Asignar Tarea</span>
+                    <span className="sm:hidden">Asignar</span>
+                    <ArrowRight className="h-4 w-4 ml-1 sm:ml-2" />
                   </Button>
                 )}
 
@@ -421,7 +555,7 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                     size="sm" 
                     className="w-full sm:w-auto bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
                     disabled={isUpdating}
-                    onClick={() => onStatusChange(incident.id, 'resolved')}
+                    onClick={() => onResolveIncident(incident.id)} // Llama a la nueva función de resolver
                   >
                     {isUpdating ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
