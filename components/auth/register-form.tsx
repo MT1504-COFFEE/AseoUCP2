@@ -1,33 +1,28 @@
-// En: components/auth/register-form.tsx
 "use client"
 
 import type React from "react"
 import { useState } from "react"
-import { useRouter } from "next/navigation" // useRouter ya no es necesario aquí
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Building2, ArrowLeft } from "lucide-react"
+// --- ELIMINAMOS 'Select' DE ESTA LÍNEA ---
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
-// --- IMPORTA useAuth ---
 import { useAuth } from "@/components/auth/auth-provider"
-// Ya no necesitamos esto:
-// import { saveAuthToken, saveUser } from "@/lib/auth"
 
 export function RegisterForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [fullName, setFullName] = useState("")
-  const [role, setRole] = useState("")
+  // --- ELIMINAMOS EL ESTADO 'role' ---
+  // const [role, setRole] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  // const router = useRouter() // Ya no lo usamos, 'authenticate' redirige
   
-  // --- OBTÉN 'authenticate' DEL CONTEXTO ---
   const { authenticate } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,27 +31,25 @@ export function RegisterForm() {
     setError("")
 
     try {
-      console.log("[v0] Attempting registration with:", { email, fullName, role })
+      console.log("[v0] Attempting registration with:", { email, fullName })
 
-      // Llama a la API (esto está bien)
-      const data = await apiClient.register({ email, password, fullName, role })
+      // --- CAMBIO EN LA LLAMADA A LA API ---
+      // Ya no enviamos 'role', o lo enviamos forzado como 'cleaning_staff'
+      // El backend (siguiente paso) lo forzará de todas formas.
+      const data = await apiClient.register({ 
+        email, 
+        password, 
+        fullName, 
+        role: "cleaning_staff" // Enviamos esto por defecto
+      })
+      // -------------------------------------
 
       console.log("[v0] Registration successful, user data:", data.user)
-
-      // --- ¡CAMBIO CLAVE! ---
-      // Llama a la función 'authenticate' del AuthProvider
-      // Esta función se encargará de guardar, actualizar el estado Y redirigir
       authenticate(data.user, data.token)
-
-      // Ya no necesitamos estas líneas:
-      // saveAuthToken(data.token)
-      // saveUser(data.user)
-      // if (data.user.role === "admin") { ... }
 
     } catch (err) {
       console.error("[v0] Registration error:", err)
       const apiError = err instanceof Error ? err.message : "Error al crear la cuenta";
-      // Intenta mostrar un error más limpio
       const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/);
       setError(errorDetailMatch ? errorDetailMatch[1] : apiError);
     } finally {
@@ -65,7 +58,6 @@ export function RegisterForm() {
   }
 
   return (
-    // ... (El JSX del formulario no cambia) ...
     <div className="min-h-screen flex items-center justify-center bg-[url('/Catolica.jpg')] bg-cover bg-center bg-no-repeat bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
@@ -85,7 +77,6 @@ export function RegisterForm() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* ... (Inputs del formulario) ... */}
              <div className="space-y-2">
               <Label htmlFor="fullName">Nombre completo</Label>
               <Input
@@ -125,19 +116,8 @@ export function RegisterForm() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="role">Rol</Label>
-              <Select value={role} onValueChange={setRole} required disabled={isLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tu rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cleaning_staff">Personal de Limpieza</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
+            {/* --- BLOQUE DE 'Rol' ELIMINADO --- */}
+            
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>

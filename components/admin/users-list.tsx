@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button" // <-- AÑADIR Button
+import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,12 +15,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog" // <-- AÑADIR AlertDialog
-import { Loader2, Users, Shield, UserCheck, Trash2 } from "lucide-react" // <-- AÑADIR Trash2
+} from "@/components/ui/alert-dialog"
+import { Loader2, Users, Shield, UserCheck, Trash2 } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/components/auth/auth-provider"
 import type { User } from "@/lib/auth" 
-import { toast } from "sonner" // <-- AÑADIR toast
+import { toast } from "sonner" 
 
 export function UsersList() {
   const [users, setUsers] = useState<User[]>([])
@@ -28,7 +28,6 @@ export function UsersList() {
   const [error, setError] = useState<string | null>(null)
   const { user: adminUser } = useAuth()
 
-  // --- NUEVOS ESTADOS PARA EL MODAL DE ELIMINAR ---
   const [isAlertOpen, setIsAlertOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -47,6 +46,7 @@ export function UsersList() {
       if (Array.isArray(data)) {
          setUsers(data)
       } else {
+         console.error("La respuesta de /api/users no fue un array:", data);
          setUsers([]); 
          setError("La respuesta del servidor para obtener usuarios no fue válida.");
       }
@@ -58,7 +58,6 @@ export function UsersList() {
     }
   }
 
-  // --- NUEVAS FUNCIONES PARA MANEJAR ELIMINACIÓN ---
   const handleOpenDeleteDialog = (user: User) => {
     setUserToDelete(user);
     setIsAlertOpen(true);
@@ -67,7 +66,6 @@ export function UsersList() {
   const handleConfirmDelete = async () => {
     if (!userToDelete) return;
 
-    // Evitar que el admin se borre a sí mismo (doble chequeo en frontend)
     if (adminUser?.id === userToDelete.id) {
         toast.error("No puedes eliminar tu propia cuenta.");
         setIsAlertOpen(false);
@@ -76,9 +74,8 @@ export function UsersList() {
 
     setIsDeleting(true);
     try {
-      await apiClient.deleteUser(userToDelete.id); // Llama al API client
+      await apiClient.deleteUser(userToDelete.id); //
       toast.success(`Usuario "${userToDelete.fullName}" eliminado.`);
-      // Actualiza la lista en el estado local (más rápido que volver a cargar)
       setUsers(currentUsers => currentUsers.filter(u => u.id !== userToDelete.id));
     } catch (err) {
       console.error("Error deleting user:", err);
@@ -91,7 +88,6 @@ export function UsersList() {
       setUserToDelete(null);
     }
   }
-  // ---------------------------------------------
 
   if (isLoading) {
     return (
@@ -102,7 +98,6 @@ export function UsersList() {
     );
   }
 
-  // --- CORRECCIÓN DEL ERROR DE LA IMAGEN ANTERIOR ---
   if (error) {
     return (
       <Card>
@@ -115,7 +110,6 @@ export function UsersList() {
       </Card>
     )
   }
-  // -------------------------------------------------
 
   return (
     <>
@@ -137,13 +131,13 @@ export function UsersList() {
                   <TableHead>Nombre Completo</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Rol</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead> {/* <-- NUEVA COLUMNA */}
+                  <TableHead className="text-right">Acciones</TableHead> 
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center h-24"> {/* <-- CAMBIAR A 4 */}
+                    <TableCell colSpan={4} className="text-center h-24">
                       No se encontraron usuarios.
                     </TableCell>
                   </TableRow>
@@ -165,19 +159,17 @@ export function UsersList() {
                           </Badge>
                         )}
                       </TableCell>
-                      {/* --- NUEVA CELDA CON BOTÓN --- */}
                       <TableCell className="text-right">
                         <Button 
                           variant="ghost" 
                           size="icon"
                           onClick={() => handleOpenDeleteDialog(user)}
-                          disabled={adminUser?.id === user.id} // Deshabilita borrarte a ti mismo
+                          disabled={adminUser?.id === user.id} 
                           className="text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
-                      {/* ----------------------------- */}
                     </TableRow>
                   ))
                 )}
@@ -187,7 +179,6 @@ export function UsersList() {
         </CardContent>
       </Card>
       
-      {/* --- NUEVO: DIÁLOGO DE CONFIRMACIÓN --- */}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

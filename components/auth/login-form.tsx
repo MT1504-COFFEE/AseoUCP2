@@ -1,10 +1,8 @@
-// FORMULARIO LOGIN
-
 "use client"
 
 import type React from "react"
 import { useState } from "react"
-import { useAuth } from "@/components/auth/auth-provider" // Importamos useAuth
+import { useAuth } from "@/components/auth/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,7 +12,7 @@ import { Loader2, Building2, UserPlus } from "lucide-react"
 import Link from "next/link"
 
 export function LoginForm() {
-  const { login } = useAuth() // Obtenemos la función login del contexto
+  const { login } = useAuth() 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -26,9 +24,7 @@ export function LoginForm() {
     setError("")
 
     try {
-      // Simplemente llamamos a la función centralizada de login
       await login(email, password)
-      // La redirección ahora ocurre dentro de la función login del AuthProvider
     } catch (err) {
       console.error("Login error:", err)
       setError("Correo electrónico o contraseña incorrectos. Inténtalo de nuevo.")
@@ -37,7 +33,6 @@ export function LoginForm() {
     }
   }
 
-  // ... el resto del componente (el return con el JSX) se mantiene exactamente igual
   return (
      <div className="min-h-screen flex items-center justify-center bg-[url('/Catolica.jpg')] bg-cover bg-center bg-no-repeat bg-muted/30 p-4">
       <Card className="w-full max-w-md">
@@ -79,6 +74,22 @@ export function LoginForm() {
                 disabled={isLoading}
               />
             </div>
+
+            {/* --- CÓDIGO AÑADIDO --- */}
+            <div className="text-sm text-right">
+              <Link 
+                href="#" 
+                className="font-medium text-muted-foreground hover:text-primary transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Aún no tenemos el backend para esto, así que mostramos un alert
+                  alert("Función 'Olvidé mi contraseña' aún no implementada.");
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+            {/* --------------------- */}
 
             {error && (
               <Alert variant="destructive">
