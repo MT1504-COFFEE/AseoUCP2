@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Sistema de Gestión de Limpieza",
   description: "Plataforma para la gestión digital de actividades de limpieza y mantenimiento",
+  icons: {
+    icon: "/ImagenUniversidadCatolicadePereira.png",
+  },
 }
 
 export default function RootLayout({

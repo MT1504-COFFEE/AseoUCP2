@@ -17,8 +17,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs" 
 import { AlertTriangle, Calendar, MapPin, User, Eye, ImageIcon, Video, Loader2, History, CheckCircle, ArrowRight } from "lucide-react" 
-import { format, parseISO, differenceInDays, startOfDay } from "date-fns"
+// --- 1. CORRECCIÓN DE IMPORTACIÓN ---
+// Importamos 'startOfDay' (aunque no se usa en este archivo) y el resto desde 'date-fns'
+import { parseISO, differenceInDays, startOfDay } from "date-fns" 
+// Importamos SÓLO 'format' desde 'date-fns-tz'
+import { format } from "date-fns-tz" 
 import { es } from "date-fns/locale"
+// -------------------------------------
 import { apiClient } from "@/lib/api-client"
 import { useAuth } from "@/components/auth/auth-provider";
 import { cn } from "@/lib/utils";
@@ -297,8 +302,9 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                     <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4 shrink-0"/>
                         <span>
+                        {/* --- 2. CORRECCIÓN DE FORMATO (Línea 210 aprox) --- */}
                         {incident.createdAt
-                            ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm", { locale: es })
+                            ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm", { locale: es, timeZone: "America/Bogota" })
                             : 'Fecha inválida'}
                         </span>
                     </div>
@@ -344,8 +350,9 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                             <div>
                               <Label className="text-sm font-medium">Fecha Reporte</Label>
                               <p className="text-sm text-muted-foreground">
+                                {/* --- 3. CORRECCIÓN DE FORMATO (Línea 249 aprox) --- */}
                                 {incident.createdAt
-                                  ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm", { locale: es })
+                                  ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm", { locale: es, timeZone: "America/Bogota" })
                                   : 'Fecha inválida'}
                               </p>
                             </div>
@@ -353,7 +360,8 @@ function IncidentList({ incidents, currentStatus, updatingId, onStatusChange }: 
                                 <div>
                                   <Label className="text-sm font-medium">Fecha Resolución</Label>
                                   <p className="text-sm text-muted-foreground">
-                                    {format(parseISO(incident.resolvedAt), "dd/MM/yyyy HH:mm", { locale: es })}
+                                    {/* --- 4. CORRECCIÓN DE FORMATO (Línea 255 aprox) --- */}
+                                    {format(parseISO(incident.resolvedAt), "dd/MM/yyyy HH:mm", { locale: es, timeZone: "America/Bogota" })}
                                   </p>
                                 </div>
                               )}

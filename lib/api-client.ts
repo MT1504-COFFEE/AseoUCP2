@@ -85,10 +85,19 @@ export class ApiClient {
     })
   }
 
-  async updateIncidentStatus(id: number, status: "pending" | "in_progress" | "resolved") {
+  async updateIncidentStatus(id: number, status: "pending" | "in_progress" | "resolved", assignedUserId?: number | null) {
+    
+    // Construye el cuerpo de la petición
+    const body: { status: string; assignedUserId?: number | null } = { status: status };
+    
+    // Añadimos el ID solo si se proporciona
+    if (assignedUserId) {
+      body.assignedUserId = assignedUserId;
+    }
+
     return this.request<any>(`/incidents/${id}/status`, {
       method: "PUT",
-      body: JSON.stringify({ status: status }), // Envía {"status": "valor"}
+      body: JSON.stringify(body), // Envía {"status": "valor", "assignedUserId": 123}
     });
   }
 
