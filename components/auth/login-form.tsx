@@ -76,7 +76,7 @@ export function LoginForm() {
             </div>
 
             {/* --- CÓDIGO AÑADIDO --- */}
-            <div className="text-sm text-right">
+            <div className="text-sm text-center">
               <Link 
                 href="#" 
                 className="font-medium text-muted-foreground hover:text-primary transition-colors"
