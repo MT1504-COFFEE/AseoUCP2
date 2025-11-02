@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react" // Añadir useCallback
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -10,34 +9,46 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { FileUpload } from "@/components/ui/file-upload"
-import { Loader2, CheckCircle } from "lucide-react"
-import { apiClient } from "@/lib/api-client" // Importa apiClient
-import { useAuth } from "@/components/auth/auth-provider" // Importa useAuth para obtener el token
+import { Loader2, CheckCircle, UploadCloud, X, ImageIcon, VideoIcon } from "lucide-react" // Importar iconos
+import { apiClient } from "@/lib/api-client" 
+import { useAuth } from "@/components/auth/auth-provider"
+import { useDropzone } from "react-dropzone"; // Importar react-dropzone
+import { toast } from "sonner";
+import { cn } from "@/lib/utils"
 
-// Define la interfaz como la esperamos del backend (BathroomDto)
 interface BathroomDto {
   id: number;
   name: string;
-  floor: number | null; // Puede ser null si no hay piso
-  building: string | null; // Puede ser null si no hay edificio
+  floor: number | null; 
+  building: string | null; 
 }
 
+// Interface para el archivo subido
+interface UploadedFile {
+  url: string;
+  publicId: string;
+  filename: string;
+  type: string;
+}
 
 export function CleaningForm() {
-  const [bathrooms, setBathrooms] = useState<BathroomDto[]>([]) // Usa BathroomDto
+  const [bathrooms, setBathrooms] = useState<BathroomDto[]>([]) 
   const [selectedBathroom, setSelectedBathroom] = useState("")
-  const [areasCleanedIds, setAreasCleanedIds] = useState<number[]>([]); // Almacena IDs
-  const [suppliesRefilledIds, setSuppliesRefilledIds] = useState<number[]>([]); // Almacena IDs
+  const [areasCleanedIds, setAreasCleanedIds] = useState<number[]>([]); 
+  const [suppliesRefilledIds, setSuppliesRefilledIds] = useState<number[]>([]); 
   const [observations, setObservations] = useState("")
-  const [photos, setPhotos] = useState<string[]>([]); // Almacena URLs de fotos subidas
+  
+  // --- ESTADOS DE ARCHIVOS MEJORADOS ---
+  const [files, setFiles] = useState<UploadedFile[]>([]); // Almacena archivos subidos
+  const [isUploading, setIsUploading] = useState(false);
+  // ------------------------------------
+  
   const [isLoading, setIsLoading] = useState(false)
-  const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(true); // Estado para carga de baños
+  const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(true); 
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
-  const { user } = useAuth(); // Obtén el usuario para asegurar autenticación
+  const { user } = useAuth(); 
 
-  // Opcional: Define IDs para áreas y suministros (si no vienen del backend)
   const cleaningAreasMap = [
     { id: 1, key: "toilets", label: "Sanitarios" },
     { id: 2, key: "sinks", label: "Lavamanos" },
@@ -53,33 +64,29 @@ export function CleaningForm() {
   ];
 
   useEffect(() => {
-    // Solo intenta cargar baños si el usuario está autenticado
     if (user) {
         fetchBathrooms();
     } else {
-        setIsFetchingBathrooms(false); // Si no hay usuario, no cargues
+        setIsFetchingBathrooms(false); 
     }
-  }, [user]) // Depende del estado del usuario
+  }, [user]) 
 
   const fetchBathrooms = async () => {
     setIsFetchingBathrooms(true);
-    setError(""); // Limpia errores previos
+    setError(""); 
     try {
-      // --- CORRECCIÓN AQUÍ ---
-      // Usa apiClient para llamar al endpoint correcto
-      const data = await apiClient.getBathrooms(); // Asume que getBathrooms devuelve BathroomDto[]
-      console.log("Baños recibidos:", data); // Verifica qué llega del backend
+      const data = await apiClient.getBathrooms(); 
+      console.log("Baños recibidos:", data); 
       setBathrooms(data || [])
     } catch (error) {
       console.error("Error fetching bathrooms:", error)
-      setError("No se pudieron cargar los baños. Verifica la conexión con el servidor."); // Mensaje de error más útil
-      setBathrooms([]) // Asegura que la lista esté vacía en caso de error
+      setError("No se pudieron cargar los baños. Verifica la conexión con el servidor."); 
+      setBathrooms([]) 
     } finally {
       setIsFetchingBathrooms(false);
     }
   }
 
-  // Manejador para checkboxes de Áreas
   const handleAreaChange = (areaId: number, checked: boolean | 'indeterminate') => {
     if (checked === true) {
       setAreasCleanedIds((prev) => [...prev, areaId]);
@@ -88,7 +95,6 @@ export function CleaningForm() {
     }
   };
 
-  // Manejador para checkboxes de Suministros
   const handleSupplyChange = (supplyId: number, checked: boolean | 'indeterminate') => {
      if (checked === true) {
       setSuppliesRefilledIds((prev) => [...prev, supplyId]);
@@ -98,16 +104,61 @@ export function CleaningForm() {
   };
 
 
-  const handleFileUpload = (url: string, type: "image" | "video") => {
-     // Añade la URL a la lista de fotos
-     if (url) {
-       setPhotos((prev) => [...prev, url]);
-     }
-  }
-   // Función para quitar una foto específica (si implementas la UI para ello)
-   const removePhoto = (urlToRemove: string) => {
-    setPhotos((prev) => prev.filter(url => url !== urlToRemove));
-   };
+  // --- LÓGICA DE SUBIDA DE ARCHIVOS ---
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!acceptedFiles.length) return;
+    setIsUploading(true);
+    setError("");
+
+    const uploadPromises = acceptedFiles.map(async (file) => {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await apiClient.uploadFile(formData);
+        return {
+          url: response.url,
+          publicId: response.publicId,
+          filename: file.name,
+          type: response.type,
+        } as UploadedFile;
+      } catch (err) {
+        console.error("Error al subir archivo:", err);
+        const apiError = err instanceof Error ? err.message : "Error desconocido";
+        const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/);
+        const finalError = errorDetailMatch ? errorDetailMatch[1] : apiError;
+        toast.error(`Error al subir ${file.name}: ${finalError}`);
+        setError(finalError); 
+        return null;
+      }
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const successfulUploads = results.filter((res): res is UploadedFile => res !== null);
+    
+    setFiles((prevFiles) => [...prevFiles, ...successfulUploads]);
+    setIsUploading(false);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'],
+      'video/*': ['.mp4', '.mov', '.avi', '.webm'],
+    },
+    maxSize: 25 * 1024 * 1024,
+  });
+
+  const removeFile = async (fileToRemove: UploadedFile) => {
+    setFiles((prevFiles) => prevFiles.filter(file => file.publicId !== fileToRemove.publicId));
+    try {
+      await apiClient.deleteFile(fileToRemove.publicId);
+      toast.success(`Archivo "${fileToRemove.filename}" eliminado.`);
+    } catch (err) {
+      console.error("Error al eliminar archivo de Cloudinary:", err);
+      toast.error("Error al eliminar archivo del servidor, pero fue quitado del reporte.");
+    }
+  };
+  // ---------------------------------
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -122,29 +173,28 @@ export function CleaningForm() {
     setSuccess(false)
 
     try {
-        // --- CORRECCIÓN EN EL ENVÍO ---
-        // Usa apiClient y la estructura de CleaningActivityRequest
        await apiClient.createCleaningActivity({
         bathroomId: Number.parseInt(selectedBathroom),
-        areasCleanedIds: areasCleanedIds,        // Envía la lista de IDs
-        suppliesRefilledIds: suppliesRefilledIds, // Envía la lista de IDs
+        areasCleanedIds: areasCleanedIds,        
+        suppliesRefilledIds: suppliesRefilledIds, 
         observations: observations.trim() || null,
-        photos: photos                         // Envía la lista de URLs
+        photos: files.map(f => f.url) // Solo envía las URLs
       });
 
 
       setSuccess(true)
-      // Reset form
+      
+      // --- ESTO RESUELVE EL PROBLEMA 3 ---
       setSelectedBathroom("")
       setAreasCleanedIds([]);
       setSuppliesRefilledIds([]);
       setObservations("")
-      setPhotos([]);
-      // TODO: Considera resetear el componente FileUpload si es necesario
+      setFiles([]); // Vacía la lista de archivos
+      // ---------------------------------
 
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
-      console.error("Error registrando actividad:", err); // Loguea el error real
+      console.error("Error registrando actividad:", err); 
       setError(err instanceof Error ? err.message : "Error al registrar la actividad")
     } finally {
       setIsLoading(false)
@@ -162,14 +212,13 @@ export function CleaningForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Bathroom Selection */}
           <div className="space-y-2">
             <Label htmlFor="bathroom">Seleccionar Baño *</Label>
             <Select
               value={selectedBathroom}
               onValueChange={setSelectedBathroom}
               required
-              disabled={isFetchingBathrooms || isLoading} // Deshabilita mientras carga
+              disabled={isFetchingBathrooms || isLoading} 
             >
               <SelectTrigger>
                 <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño a limpiar"} />
@@ -181,7 +230,6 @@ export function CleaningForm() {
                     <SelectItem value="no-options" disabled>No hay baños disponibles</SelectItem>
                 ) : (
                   bathrooms.map((bathroom) => (
-                    // Muestra Nombre - Piso - Edificio si están disponibles
                     <SelectItem key={bathroom.id} value={bathroom.id.toString()}>
                       {`${bathroom.building || 'Edificio desc.'} - ${bathroom.floor ? `Piso ${bathroom.floor}` : 'Piso desc.'} - ${bathroom.name}`}
                     </SelectItem>
@@ -189,7 +237,6 @@ export function CleaningForm() {
                 )}
               </SelectContent>
             </Select>
-             {/* Muestra error si no se pudieron cargar los baños */}
              {!isFetchingBathrooms && bathrooms.length === 0 && error && (
                 <p className="text-sm text-destructive mt-1">{error}</p>
              )}
@@ -202,10 +249,10 @@ export function CleaningForm() {
               {cleaningAreasMap.map(({ id, key, label }) => (
                 <div key={key} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`area-${key}`} // ID único
+                    id={`area-${key}`} 
                     checked={areasCleanedIds.includes(id)}
                     onCheckedChange={(checked) => handleAreaChange(id, checked)}
-                    disabled={isLoading}
+                    disabled={isLoading || isUploading}
                   />
                   <Label htmlFor={`area-${key}`} className="text-sm font-normal cursor-pointer">
                     {label}
@@ -222,10 +269,10 @@ export function CleaningForm() {
               {suppliesMap.map(({ id, key, label }) => (
                 <div key={key} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`supply-${key}`} // ID único
+                    id={`supply-${key}`} 
                     checked={suppliesRefilledIds.includes(id)}
                     onCheckedChange={(checked) => handleSupplyChange(id, checked)}
-                     disabled={isLoading}
+                     disabled={isLoading || isUploading}
                   />
                   <Label htmlFor={`supply-${key}`} className="text-sm font-normal cursor-pointer">
                     {label}
@@ -235,28 +282,63 @@ export function CleaningForm() {
             </div>
           </div>
 
-          {/* Evidence Upload */}
+          {/* --- NUEVO BLOQUE DE SUBIDA DE ARCHIVOS --- */}
           <div className="space-y-2">
             <Label>Evidencia (Foto o Video)</Label>
-            {/* TODO: Modifica FileUpload si necesitas mostrar múltiples archivos o permitir quitarlos */}
-            <FileUpload onUpload={handleFileUpload} />
-             {/* Opcional: Mostrar lista de archivos subidos */}
-             {photos.length > 0 && (
-                <div className="mt-2 space-y-1">
-                    <p className="text-xs text-muted-foreground">Archivos subidos:</p>
-                    <ul className="list-disc list-inside text-xs">
-                        {photos.map((url, index) => (
-                            <li key={index} className="truncate">
-                                {url.substring(url.lastIndexOf('/') + 1)}
-                                {/* Podrías añadir un botón para llamar a removePhoto(url) */}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-             )}
-          </div>
+            <div
+              {...getRootProps()}
+              className={cn(
+                "border-input dark:bg-input/30 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-6 text-center transition-colors",
+                isDragActive && "border-primary",
+                (isUploading || isLoading) && "cursor-not-allowed opacity-50"
+              )}
+            >
+              <input {...getInputProps()} disabled={isUploading || isLoading} />
+              {isUploading ? (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              ) : (
+                <UploadCloud className="h-8 w-8 text-muted-foreground" />
+              )}
+              <p className="text-sm text-muted-foreground">
+                {isUploading ? "Subiendo..." : isDragActive ? "Suelta los archivos aquí" : "Arrastra y suelta o haz clic para subir"}
+              </p>
+            </div>
 
-          {/* Observations (antes Notes) */}
+            {files.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs text-muted-foreground">Archivos adjuntos:</p>
+                <ul className="grid grid-cols-1 gap-2">
+                  {files.map((file) => (
+                    <li
+                      key={file.publicId}
+                      className="flex items-center justify-between gap-2 rounded-md border bg-muted/50 p-2 text-sm"
+                    >
+                      <div className="flex flex-1 items-center gap-2 overflow-hidden">
+                        {file.type.startsWith("image") ? (
+                          <ImageIcon className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <VideoIcon className="h-4 w-4 shrink-0" />
+                        )}
+                        <span className="truncate">{file.filename}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeFile(file)}
+                        disabled={isUploading || isLoading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          {/* --- FIN DEL NUEVO BLOQUE --- */}
+
           <div className="space-y-2">
             <Label htmlFor="observations">Notas Adicionales (Opcional)</Label>
             <Textarea
@@ -265,12 +347,11 @@ export function CleaningForm() {
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
               rows={3}
-               disabled={isLoading}
+               disabled={isLoading || isUploading}
             />
           </div>
 
-          {/* Muestra error de envío o selección */}
-          {error && !error.includes("cargar los baños") && ( // No mostrar error de carga aquí
+          {error && !error.includes("cargar los baños") && ( 
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -283,7 +364,7 @@ export function CleaningForm() {
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading || isFetchingBathrooms || !selectedBathroom}>
+          <Button type="submit" className="w-full" disabled={isLoading || isFetchingBathrooms || isUploading || !selectedBathroom}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef } from "react" // Añade useRef
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { FileUpload } from "@/components/ui/file-upload"
-import { Loader2, AlertTriangle, CheckCircle } from "lucide-react"
-import { apiClient } from "@/lib/api-client"; // Importa apiClient
-import { useAuth } from "@/components/auth/auth-provider"; // Importa useAuth
+import { Loader2, AlertTriangle, CheckCircle, UploadCloud, X, ImageIcon, VideoIcon } from "lucide-react"
+import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useDropzone } from "react-dropzone"; 
+import { toast } from "sonner";
+import { cn } from "@/lib/utils"
 
-// Interfaz que coincide con BathroomDto del backend
 interface BathroomDto {
   id: number;
   name: string;
@@ -22,64 +23,109 @@ interface BathroomDto {
   building: string | null;
 }
 
-// Interfaz para el payload de creación de incidente
-interface IncidentPayload {
-    bathroomId: number;
-    title: string;
-    description: string | null;
-    priority: "low" | "medium" | "high";
-    photos: string[];
+// Interface para el archivo subido
+interface UploadedFile {
+  url: string;
+  publicId: string;
+  filename: string;
+  type: string;
 }
 
-
 export function IncidentForm() {
-  const [bathrooms, setBathrooms] = useState<BathroomDto[]>([]) // Usa BathroomDto
+  const [bathrooms, setBathrooms] = useState<BathroomDto[]>([])
   const [selectedBathroom, setSelectedBathroom] = useState("")
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
-  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium"); // Tipado explícito
-  const [photos, setPhotos] = useState<string[]>([]); // Almacena URLs de fotos
+  const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
+  
+  const [files, setFiles] = useState<UploadedFile[]>([]); 
+  const [isUploading, setIsUploading] = useState(false);
+  
   const [isLoading, setIsLoading] = useState(false)
-  const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(true); // Estado para carga
+  const [isFetchingBathrooms, setIsFetchingBathrooms] = useState(true);
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
-  const { user } = useAuth(); // Obtén usuario
-  const fileUploadRef = useRef<{ reset: () => void }>(null); // Ref para resetear FileUpload
+  const { user } = useAuth(); 
 
   useEffect(() => {
-     if (user) { // Carga baños si hay usuario
+     if (user) { 
         fetchBathrooms();
     } else {
-        setIsFetchingBathrooms(false); // No cargar si no hay usuario
+        setIsFetchingBathrooms(false); 
     }
   }, [user])
 
   const fetchBathrooms = async () => {
     setIsFetchingBathrooms(true);
-    setError(""); // Limpia errores previos al cargar
+    setError(""); 
     try {
-      // --- CORRECCIÓN AQUÍ ---
-      const data = await apiClient.getBathrooms(); // Usa apiClient.getBathrooms
-      console.log("Baños recibidos (IncidentForm):", data); // Verifica
+      const data = await apiClient.getBathrooms(); 
       setBathrooms(data || [])
     } catch (error) {
       console.error("Error fetching bathrooms:", error)
-      setError("No se pudieron cargar los baños."); // Mensaje específico
+      setError("No se pudieron cargar los baños."); 
       setBathrooms([])
     } finally {
       setIsFetchingBathrooms(false);
     }
   }
 
-  const handleFileUpload = (url: string, type: "image" | "video") => {
-    if (url) {
-        setPhotos((prev) => [...prev, url]);
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!acceptedFiles.length) return;
+    setIsUploading(true);
+    setError("");
+
+    const uploadPromises = acceptedFiles.map(async (file) => {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        // Llama a uploadFile (que ahora acepta FormData y devuelve publicId)
+        const response = await apiClient.uploadFile(formData);
+        return {
+          url: response.url,
+          publicId: response.publicId, // Ahora esto existe
+          filename: file.name,
+          type: response.type,
+        } as UploadedFile;
+      } catch (err) {
+        console.error("Error al subir archivo:", err);
+        const apiError = err instanceof Error ? err.message : "Error desconocido";
+        const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/);
+        const finalError = errorDetailMatch ? errorDetailMatch[1] : apiError;
+        toast.error(`Error al subir ${file.name}: ${finalError}`);
+        setError(finalError); 
+        return null;
+      }
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const successfulUploads = results.filter((res): res is UploadedFile => res !== null);
+    
+    setFiles((prevFiles) => [...prevFiles, ...successfulUploads]);
+    setIsUploading(false);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'],
+      'video/*': ['.mp4', '.mov', '.avi', '.webm'],
+    },
+    maxSize: 25 * 1024 * 1024, 
+  });
+
+  const removeFile = async (fileToRemove: UploadedFile) => {
+    setFiles((prevFiles) => prevFiles.filter(file => file.publicId !== fileToRemove.publicId));
+
+    try {
+      // Llama a deleteFile (que ahora existe)
+      await apiClient.deleteFile(fileToRemove.publicId); 
+      toast.success(`Archivo "${fileToRemove.filename}" eliminado.`);
+    } catch (err) {
+      console.error("Error al eliminar archivo de Cloudinary:", err);
+      toast.error("Error al eliminar archivo del servidor, pero fue quitado del reporte.");
     }
-  }
-   // Función para quitar una foto (si la UI lo permite)
-   const removePhoto = (urlToRemove: string) => {
-    setPhotos((prev) => prev.filter(url => url !== urlToRemove));
-   };
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -92,37 +138,30 @@ export function IncidentForm() {
     setError("")
     setSuccess(false)
 
-    // Construye el payload según la interfaz
-    const incidentPayload: IncidentPayload = {
+    const incidentPayload = {
         bathroomId: Number.parseInt(selectedBathroom),
         title: title.trim(),
         description: description.trim() || null,
         priority: priority,
-        photos: photos
+        photos: files.map(f => f.url) 
     };
 
-
     try {
-      // --- CORRECCIÓN AQUÍ ---
-      // Usa apiClient.createIncident con el payload correcto
       await apiClient.createIncident(incidentPayload);
-
       setSuccess(true)
-      // Reset form
+      
+      // Resuelve el problema 3: vacía la lista de archivos
       setSelectedBathroom("")
       setTitle("")
       setDescription("")
       setPriority("medium")
-      setPhotos([]);
-      // Resetea el componente FileUpload si tienes la ref configurada
-      // fileUploadRef.current?.reset(); // Necesitarías exponer un método reset en FileUpload
-
+      setFiles([]); // <-- ¡AQUÍ!
+      
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       console.error("Error reportando incidente:", err);
-      // Intenta obtener un mensaje más específico del error si es posible
       const apiError = err instanceof Error ? err.message : "Error desconocido";
-      const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/); // Intenta extraer el JSON
+      const errorDetailMatch = apiError.match(/\{"error":"(.*?)"\}/);
       setError(errorDetailMatch ? errorDetailMatch[1] : apiError);
     } finally {
       setIsLoading(false)
@@ -140,8 +179,7 @@ export function IncidentForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Bathroom Selection */}
-          <div className="space-y-2">
+           <div className="space-y-2">
             <Label htmlFor="bathroom">Seleccionar Baño *</Label>
             <Select
                 value={selectedBathroom}
@@ -150,7 +188,7 @@ export function IncidentForm() {
                 disabled={isFetchingBathrooms || isLoading}
             >
               <SelectTrigger id="bathroom">
-                <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño donde ocurrió el incidente"} />
+                <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño"} />
               </SelectTrigger>
               <SelectContent>
                  {isFetchingBathrooms ? (
@@ -166,31 +204,15 @@ export function IncidentForm() {
                 )}
               </SelectContent>
             </Select>
-             {!isFetchingBathrooms && bathrooms.length === 0 && error.includes("cargar los baños") && (
-                <p className="text-sm text-destructive mt-1">{error}</p>
-             )}
           </div>
-
-          {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">Título del Incidente *</Label>
-            <Input
-              id="title"
-              placeholder="Ej: Grifo con fuga, Espejo roto, Inodoro obstruido..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              disabled={isLoading}
-            />
+            <Input id="title" placeholder="Ej: Grifo con fuga..." value={title} onChange={(e) => setTitle(e.target.value)} required disabled={isLoading || isUploading} />
           </div>
-
-          {/* Priority */}
           <div className="space-y-2">
             <Label htmlFor="priority">Prioridad</Label>
-            <Select value={priority} onValueChange={(value) => setPriority(value as "low" | "medium" | "high")} disabled={isLoading}>
-              <SelectTrigger id="priority">
-                <SelectValue />
-              </SelectTrigger>
+            <Select value={priority} onValueChange={(value) => setPriority(value as "low" | "medium" | "high")} disabled={isLoading || isUploading}>
+              <SelectTrigger id="priority"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="low">Baja - No urgente</SelectItem>
                 <SelectItem value="medium">Media - Atención normal</SelectItem>
@@ -198,46 +220,67 @@ export function IncidentForm() {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Descripción del Problema *</Label>
-            <Textarea
-              id="description"
-              placeholder="Describe detalladamente el problema encontrado, su ubicación exacta y cualquier información relevante..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              required
-              disabled={isLoading}
-            />
+            <Textarea id="description" placeholder="Describe detalladamente el problema..." value={description} onChange={(e) => setDescription(e.target.value)} rows={4} required disabled={isLoading || isUploading} />
           </div>
 
-          {/* Evidence Upload */}
           <div className="space-y-2">
             <Label>Evidencia (Foto o Video)</Label>
-            {/* Si necesitas resetearlo, pasa la ref: <FileUpload ref={fileUploadRef} onUpload={handleFileUpload} /> */}
-            <FileUpload onUpload={handleFileUpload} />
-             {/* Opcional: Mostrar lista de archivos subidos */}
-             {photos.length > 0 && (
-                <div className="mt-2 space-y-1">
-                    <p className="text-xs text-muted-foreground">Archivos subidos:</p>
-                    <ul className="list-disc list-inside text-xs">
-                        {photos.map((url, index) => (
-                            <li key={index} className="truncate">
-                                {url.substring(url.lastIndexOf('/') + 1)}
-                                {/* Podrías añadir un botón aquí para llamar a removePhoto(url) */}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-             )}
-            <p className="text-xs text-muted-foreground">
-              Adjunta una foto o video que muestre el problema para facilitar su resolución
-            </p>
+            <div
+              {...getRootProps()}
+              className={cn(
+                "border-input dark:bg-input/30 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed p-6 text-center transition-colors",
+                isDragActive && "border-primary",
+                (isUploading || isLoading) && "cursor-not-allowed opacity-50"
+              )}
+            >
+              <input {...getInputProps()} disabled={isUploading || isLoading} />
+              {isUploading ? (
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              ) : (
+                <UploadCloud className="h-8 w-8 text-muted-foreground" />
+              )}
+              <p className="text-sm text-muted-foreground">
+                {isUploading ? "Subiendo..." : isDragActive ? "Suelta los archivos aquí" : "Arrastra y suelta o haz clic para subir"}
+              </p>
+            </div>
+
+            {files.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs text-muted-foreground">Archivos adjuntos:</p>
+                <ul className="grid grid-cols-1 gap-2">
+                  {files.map((file) => (
+                    <li
+                      key={file.publicId}
+                      className="flex items-center justify-between gap-2 rounded-md border bg-muted/50 p-2 text-sm"
+                    >
+                      <div className="flex flex-1 items-center gap-2 overflow-hidden">
+                        {file.type.startsWith("image") ? (
+                          <ImageIcon className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <VideoIcon className="h-4 w-4 shrink-0" />
+                        )}
+                        <span className="truncate">{file.filename}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeFile(file)}
+                        disabled={isUploading || isLoading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
-          {error && !error.includes("cargar los baños") && (
+          {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -252,12 +295,9 @@ export function IncidentForm() {
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading || isFetchingBathrooms || !selectedBathroom}>
+          <Button type="submit" className="w-full" disabled={isLoading || isFetchingBathrooms || isUploading}>
             {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Reportando...
-              </>
+              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reportando...</>
             ) : (
               "Reportar Incidente"
             )}
@@ -267,6 +307,3 @@ export function IncidentForm() {
     </Card>
   )
 }
-
-// Asegúrate de importar Label o tenerla definida globalmente
-// import { Label } from "@/components/ui/label";
