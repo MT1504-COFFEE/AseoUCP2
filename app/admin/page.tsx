@@ -7,8 +7,8 @@ import { AdminHeader } from "@/components/admin/admin-header"
 import { IncidentsDashboard } from "@/components/admin/incidents-dashboard"
 import { CleaningHistory } from "@/components/admin/cleaning-history"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertTriangle, History, Users } from "lucide-react" // 1. ASEGÚRATE DE IMPORTAR 'Users'
-import { UsersList } from "@/components/admin/users-list" // 2. IMPORTA EL NUEVO COMPONENTE
+import { AlertTriangle, History, Users } from "lucide-react" // 1. IMPORTAR 'Users'
+import { UsersList } from "@/components/admin/users-list" // 2. IMPORTAR 'UsersList'
 
 export default function AdminPage() {
   const { user, isLoading } = useAuth()
@@ -25,6 +25,7 @@ export default function AdminPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        {/* ... (tu spinner de carga) ... */}
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Cargando...</p>
@@ -51,8 +52,8 @@ export default function AdminPage() {
           </div>
 
           <Tabs defaultValue="incidents" className="space-y-6">
-            {/* 3. AQUÍ ESTÁ EL CAMBIO RESPONSIVE (de md:grid-cols-3) */}
-            <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
+            {/* 3. CAMBIAR A grid-cols-3 */}
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="incidents" className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4" />
                 Incidentes
@@ -61,7 +62,7 @@ export default function AdminPage() {
                 <History className="h-4 w-4" />
                 Historial de Limpieza
               </TabsTrigger>
-              {/* 4. AQUÍ ESTÁ LA PESTAÑA QUE FALTABA */}
+              {/* 4. AÑADIR NUEVO TabsTrigger */}
               <TabsTrigger value="users" className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Colaboradores
@@ -76,7 +77,7 @@ export default function AdminPage() {
               <CleaningHistory />
             </TabsContent>
 
-            {/* 5. Y AQUÍ ESTÁ EL CONTENIDO DE LA PESTAÑA QUE FALTABA */}
+            {/* 5. AÑADIR NUEVO TabsContent */}
             <TabsContent value="users">
               <UsersList />
             </TabsContent>
