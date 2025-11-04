@@ -226,28 +226,30 @@ const handleSubmit = async (e: React.FormEvent) => {
           <div className="space-y-2">
             <Label htmlFor="bathroom">Seleccionar Baño *</Label>
             <Select
-              value={selectedBathroom}
-              onValueChange={setSelectedBathroom}
-              required
-              disabled={isFetchingBathrooms || isLoading} 
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño a limpiar"} />
-              </SelectTrigger>
-              <SelectContent>
-                {isFetchingBathrooms ? (
-                    <SelectItem value="loading" disabled>Cargando...</SelectItem>
-                ) : bathrooms.length === 0 ? (
-                    <SelectItem value="no-options" disabled>No hay baños disponibles</SelectItem>
-                ) : (
-                  bathrooms.map((bathroom) => (
-                    <SelectItem key={bathroom.id} value={bathroom.id.toString()}>
-                      {`${bathroom.building || 'Edificio desc.'} - ${bathroom.floor ? `Piso ${bathroom.floor}` : 'Piso desc.'} - ${bathroom.name}`}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+  value={selectedBathroom}
+  onValueChange={setSelectedBathroom}
+  required
+  disabled={isFetchingBathrooms || isLoading} 
+>
+  {/* Añadimos 'truncate' aquí para cortar el texto seleccionado */}
+  <SelectTrigger className="truncate">
+    <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño a limpiar"} />
+  </SelectTrigger>
+  <SelectContent>
+    {isFetchingBathrooms ? (
+      <SelectItem value="loading" disabled>Cargando...</SelectItem>
+    ) : bathrooms.length === 0 ? (
+      <SelectItem value="no-options" disabled>No hay baños disponibles</SelectItem>
+    ) : (
+      bathrooms.map((bathroom) => (
+        // Añadimos 'truncate' aquí para cortar las opciones de la lista
+        <SelectItem key={bathroom.id} value={bathroom.id.toString()} className="truncate">
+          {`${bathroom.building || 'Edificio desc.'} - ${bathroom.floor ? `Piso ${bathroom.floor}` : 'Piso desc.'} - ${bathroom.name}`}
+        </SelectItem>
+      ))
+    )}
+  </SelectContent>
+</Select>
              {!isFetchingBathrooms && bathrooms.length === 0 && error && (
                 <p className="text-sm text-destructive mt-1">{error}</p>
              )}
