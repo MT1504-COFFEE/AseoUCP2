@@ -76,15 +76,10 @@ export function LoginForm() {
             </div>
 
             {/* --- CÓDIGO AÑADIDO --- */}
-            <div className="text-sm text-center">
+            <div className="text-sm text-right">
               <Link 
-                href="#" 
+                href="/forgot-password" 
                 className="font-medium text-muted-foreground hover:text-primary transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  // Aún no tenemos el backend para esto, así que mostramos un alert
-                  alert("Función 'Olvidé mi contraseña' aún no implementada.");
-                }}
               >
                 ¿Olvidaste tu contraseña?
               </Link>

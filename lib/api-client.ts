@@ -178,6 +178,20 @@ export class ApiClient {
       method: "DELETE",
     });
   }
+
+  async forgotPassword(email: string) {
+    return this.request<any>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+  
+  async resetPassword(token: string, newPassword: string) {
+    return this.request<any>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    });
+  }
 }
 
 export const apiClient = new ApiClient()
