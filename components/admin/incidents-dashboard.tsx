@@ -429,7 +429,7 @@ function IncidentList({ incidents, currentStatus, updatingId, onOpenAssignModal,
                         <Calendar className="h-4 w-4 shrink-0"/>
                         <span>
                         {incident.createdAt
-                            ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm", {timeZone: "America/Bogota" })
+                            ? format(parseISO(incident.createdAt), "dd/MM/yyyy HH:mm")
                             : 'Fecha inválida'}
                         </span>
                     </div>
