@@ -30,16 +30,25 @@ export function StaffHeader() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <User className="h-4 w-4" />
-              <span className="font-medium">{user?.fullName}</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={logout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Cerrar Sesión
-            </Button>
+          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-sm">
+            <User className="h-4 w-4" />
+            <span className="font-medium truncate max-w-[120px] sm:max-w-none">
+              {user?.fullName}
+            </span>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={logout}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Cerrar Sesión</span>
+          </Button>
+        </div>
+
         </div>
       </div>
     </header>
