@@ -161,15 +161,26 @@ export function CleaningForm() {
   // ---------------------------------
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("") // Limpia errores al intentar enviar
+    
+    // --- VALIDACIÓN MEJORADA ---
     if (!selectedBathroom) {
-      setError("Por favor selecciona un baño")
+      setError("Por favor selecciona un baño.")
       return
     }
+    if (areasCleanedIds.length === 0) {
+      setError("Debes seleccionar al menos un área limpiada.")
+      return
+    }
+    if (suppliesRefilledIds.length === 0) {
+      setError("Debes seleccionar al menos un suministro reabastecido.")
+      return
+    }
+    // ---------------------------
 
     setIsLoading(true)
-    setError("")
     setSuccess(false)
 
     try {
@@ -244,7 +255,7 @@ export function CleaningForm() {
 
           {/* Areas Cleaned */}
           <div className="space-y-3">
-            <Label className="text-base font-medium">Áreas Limpiadas</Label>
+            <Label className="text-base font-medium">Áreas Limpiadas *</Label>
             <div className="grid grid-cols-2 gap-3">
               {cleaningAreasMap.map(({ id, key, label }) => (
                 <div key={key} className="flex items-center space-x-2">
@@ -264,7 +275,7 @@ export function CleaningForm() {
 
           {/* Supplies Restocked */}
           <div className="space-y-3">
-            <Label className="text-base font-medium">Suministros Reabastecidos</Label>
+            <Label className="text-base font-medium">Suministros Reabastecidos *</Label>
             <div className="grid grid-cols-1 gap-3">
               {suppliesMap.map(({ id, key, label }) => (
                 <div key={key} className="flex items-center space-x-2">
@@ -364,7 +375,18 @@ export function CleaningForm() {
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading || isFetchingBathrooms || isUploading || !selectedBathroom}>
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={
+              isLoading || 
+              isFetchingBathrooms || 
+              isUploading || 
+              !selectedBathroom ||
+              areasCleanedIds.length === 0 || // <-- AÑADIDO
+              suppliesRefilledIds.length === 0 // <-- AÑADIDO
+            }
+          >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
