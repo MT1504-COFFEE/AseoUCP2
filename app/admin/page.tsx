@@ -55,24 +55,23 @@ export default function AdminPage() {
             {/* 3. CAMBIAR A grid-cols-3 */}
             <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
   
-  <TabsTrigger value="incidents" className="flex items-center gap-2">
-    <AlertTriangle className="h-4 w-4" />
-    {/* Este <span> oculta el texto en móviles y lo muestra en medianos (md)
-    */}
-    <span className="hidden md:inline">Incidentes</span>
-  </TabsTrigger>
-  
-  <TabsTrigger value="history" className="flex items-center gap-2">
-    <History className="h-4 w-4" />
-    <span className="hidden md:inline">Historial de Limpieza</span>
-  </TabsTrigger>
-  
-  <TabsTrigger value="users" className="flex items-center gap-2">
-    <Users className="h-4 w-4" />
-    <span className="hidden md:inline">Colaboradores</span>
-  </TabsTrigger>
+            <TabsTrigger value="incidents" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              {/* Este <span> oculta el texto en móviles y lo muestra en medianos (md) */}
+              <span className="hidden md:inline">Incidentes</span>
+            </TabsTrigger>
+            
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              <span className="hidden md:inline">Historial de Limpieza</span>
+            </TabsTrigger>
+            
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden md:inline">Colaboradores</span>
+            </TabsTrigger>
 
-</TabsList>
+          </TabsList>
 
             <TabsContent value="incidents">
               <IncidentsDashboard />
