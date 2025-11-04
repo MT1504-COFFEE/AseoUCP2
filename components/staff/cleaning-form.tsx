@@ -231,19 +231,27 @@ const handleSubmit = async (e: React.FormEvent) => {
   required
   disabled={isFetchingBathrooms || isLoading} 
 >
-  {/* Añadimos 'truncate' aquí para cortar el texto seleccionado */}
-  <SelectTrigger className="truncate">
+  {/* AÑADIDO: id="bathroom" (para enlazar con la Label)
+    AÑADIDO: className="max-w-full truncate" (para cortar el texto seleccionado)
+  */}
+  <SelectTrigger id="bathroom" className="max-w-full truncate">
     <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño a limpiar"} />
   </SelectTrigger>
   <SelectContent>
     {isFetchingBathrooms ? (
-      <SelectItem value="loading" disabled>Cargando...</SelectItem>
+        <SelectItem value="loading" disabled>Cargando...</SelectItem>
     ) : bathrooms.length === 0 ? (
-      <SelectItem value="no-options" disabled>No hay baños disponibles</SelectItem>
+        <SelectItem value="no-options" disabled>No hay baños disponibles</SelectItem>
     ) : (
       bathrooms.map((bathroom) => (
-        // Añadimos 'truncate' aquí para cortar las opciones de la lista
-        <SelectItem key={bathroom.id} value={bathroom.id.toString()} className="truncate">
+        /* AÑADIDO: className="truncate max-w-[90vw]"
+          (para cortar el texto en el dropdown y evitar desbordamiento en móvil)
+        */
+        <SelectItem 
+          key={bathroom.id} 
+          value={bathroom.id.toString()}
+          className="truncate max-w-[90vw]"
+        >
           {`${bathroom.building || 'Edificio desc.'} - ${bathroom.floor ? `Piso ${bathroom.floor}` : 'Piso desc.'} - ${bathroom.name}`}
         </SelectItem>
       ))
