@@ -12,15 +12,18 @@ export function StaffHeader() {
   return (
     <header className="border-b bg-card">
       <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex justify-center mb-4">
-              <img
-                src="/ImagenUniversidadCatolicadePereira.png" 
-                alt="Logo del Sistema"
-                className="h-14 w-auto"
-              />
-            </div>
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-3">
+      <div className="flex justify-center mb-4">
+        <div className="aspect-square h-14">
+          <img
+            src="/ImagenUniversidadCatolicadePereira.png"
+            alt="Logo del Sistema"
+            className="object-contain w-full h-full"
+          />
+        </div>
+      </div>
+
             <div>
               <h1 className="text-xl font-bold">Sistema de Limpieza</h1>
               <p className="text-sm text-muted-foreground">Panel del Personal</p>
