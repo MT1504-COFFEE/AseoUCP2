@@ -187,9 +187,13 @@ export function IncidentForm() {
                 required
                 disabled={isFetchingBathrooms || isLoading}
             >
-              <SelectTrigger id="bathroom">
-                <SelectValue placeholder={isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño"} />
-              </SelectTrigger>
+              <SelectTrigger id="bathroom" className="max-w-full truncate">
+              <SelectValue
+                placeholder={
+                  isFetchingBathrooms ? "Cargando baños..." : "Selecciona el baño"
+                }
+              />
+            </SelectTrigger>
               <SelectContent>
                  {isFetchingBathrooms ? (
                     <SelectItem value="loading" disabled>Cargando...</SelectItem>
@@ -197,9 +201,13 @@ export function IncidentForm() {
                     <SelectItem value="no-options" disabled>No hay baños disponibles</SelectItem>
                 ) : (
                   bathrooms.map((bathroom) => (
-                    <SelectItem key={bathroom.id} value={bathroom.id.toString()}>
-                      {`${bathroom.building || 'Edif.?'} - ${bathroom.floor ? `Piso ${bathroom.floor}` : 'Piso?'} - ${bathroom.name}`}
-                    </SelectItem>
+                    <SelectItem
+                    key={bathroom.id}
+                    value={bathroom.id.toString()}
+                    className="truncate max-w-[90vw]" // evita que se salga de pantalla
+                  >
+                    {`${bathroom.building || 'Edif.?'} - ${bathroom.floor ? `Piso ${bathroom.floor}` : 'Piso?'} - ${bathroom.name}`}
+                  </SelectItem>
                   ))
                 )}
               </SelectContent>
