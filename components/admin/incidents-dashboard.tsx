@@ -258,19 +258,27 @@ export function IncidentsDashboard() {
       {/* Pestañas (sin cambios en estructura) */}
       <Tabs defaultValue="pending" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-           <TabsTrigger value="pending" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Pendientes ({stats.pending})
-          </TabsTrigger>
-          <TabsTrigger value="in_progress" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            En Progreso ({stats.inProgress})
-          </TabsTrigger>
-          <TabsTrigger value="resolved" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Resueltos ({stats.resolved})
-          </TabsTrigger>
-        </TabsList>
+  
+  <TabsTrigger value="pending" className="flex items-center gap-2">
+    <AlertTriangle className="h-4 w-4" />
+    {/* El texto "Pendientes" se oculta en pantallas 'xs' y aparece en 'sm' */}
+    <span className="hidden sm:inline">Pendientes</span>
+    <span>({stats.pending})</span>
+  </TabsTrigger>
+  
+  <TabsTrigger value="in_progress" className="flex items-center gap-2">
+    <History className="h-4 w-4" />
+    <span className="hidden sm:inline">En Progreso</span>
+    <span>({stats.inProgress})</span>
+  </TabsTrigger>
+  
+  <TabsTrigger value="resolved" className="flex items-center gap-2">
+    <CheckCircle className="h-4 w-4" />
+    <span className="hidden sm:inline">Resueltos</span>
+    <span>({stats.resolved})</span>
+  </TabsTrigger>
+  
+</TabsList>
 
         {/* --- 8. ACTUALIZAR TabsContent (pasando las nuevas props) --- */}
         <TabsContent value="pending">
