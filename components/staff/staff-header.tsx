@@ -18,7 +18,7 @@ export function StaffHeader() {
               <img
                 src="/ImagenUniversidadCatolicadePereira.png" 
                 alt="Logo del Sistema"
-                className="h-16 w-auto"
+                className="h-14 w-auto"
               />
             </div>
             <div>
