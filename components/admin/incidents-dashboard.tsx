@@ -257,20 +257,38 @@ export function IncidentsDashboard() {
 
       {/* Pestañas (sin cambios en estructura) */}
       <Tabs defaultValue="pending" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-           <TabsTrigger value="pending" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Pendientes ({stats.pending})
-          </TabsTrigger>
-          <TabsTrigger value="in_progress" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            En Progreso ({stats.inProgress})
-          </TabsTrigger>
-          <TabsTrigger value="resolved" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Resueltos ({stats.resolved})
-          </TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="pending" className="space-y-6 w-full">
+      <TabsList className="w-full grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <TabsTrigger
+          value="pending"
+          className="flex items-center gap-2 px-2 py-2 text-sm sm:text-base justify-center"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {/* Texto oculto en pantallas muy pequeñas; solo se muestra a partir de sm */}
+          <span className="hidden sm:inline">Pendientes</span>
+          <span className="font-semibold ml-1">({stats.pending})</span>
+        </TabsTrigger>
+
+        <TabsTrigger
+          value="in_progress"
+          className="flex items-center gap-2 px-2 py-2 text-sm sm:text-base justify-center"
+        >
+          <History className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">En Progreso</span>
+          <span className="font-semibold ml-1">({stats.inProgress})</span>
+        </TabsTrigger>
+
+        <TabsTrigger
+          value="resolved"
+          className="flex items-center gap-2 px-2 py-2 text-sm sm:text-base justify-center"
+        >
+          <CheckCircle className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">Resueltos</span>
+          <span className="font-semibold ml-1">({stats.resolved})</span>
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+
 
         {/* --- 8. ACTUALIZAR TabsContent (pasando las nuevas props) --- */}
         <TabsContent value="pending">
